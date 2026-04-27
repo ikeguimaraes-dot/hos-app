@@ -1,0 +1,50 @@
+export interface Employee {
+  id: string;
+  cpf: string;
+  nome: string;
+  email: string;
+  cargo: string;
+  departamento: string;
+  data_admissao: string;
+  empresa: string;
+  status: string;
+}
+
+export interface AuthSession {
+  employee: Employee;
+  token: string;
+  expiresAt: string;
+}
+
+export interface Candidate {
+  id: string;
+  name: string;
+  access_code: string;
+  job_opening_id: string;
+  status: 'pendente' | 'em_andamento' | 'concluido';
+}
+
+export interface InterviewQuestion {
+  id: string;
+  job_opening_id: string;
+  video_path: string;
+  ordem: number;
+}
+
+export interface InterviewResponse {
+  id: string;
+  candidate_id: string;
+  question_id: string;
+  video_url: string;
+}
+
+export const COLORS = {
+  PRIMARY: '#6366F1',
+  BACKGROUND: '#F8FAFC',
+  CARD: '#FFFFFF',
+  TEXT: '#1E293B',
+  TEXT_SECONDARY: '#64748B',
+  BORDER: '#E2E8F0',
+  ERROR: '#EF4444',
+  SUCCESS: '#22C55E',
+} as const;
