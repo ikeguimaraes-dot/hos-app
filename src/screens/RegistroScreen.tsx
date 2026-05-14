@@ -149,14 +149,17 @@ export default function RegistroScreen({ navigation }: any) {
       Animated.timing(punchScale, { toValue: 1, duration: 120, useNativeDriver: true }),
     ]).start();
     const now = new Date().toISOString();
+    console.log('[PONTO] inserindo:', { employee_id: employeeId, tipo: proximoTipo, timestamp: now });
     const { data, error } = await supabase
       .from('time_clock_punches')
       .insert({ employee_id: employeeId, tipo: proximoTipo, timestamp: now })
       .select('tipo, timestamp')
       .single();
+    console.log('[PONTO] resultado data:', JSON.stringify(data));
+    console.log('[PONTO] resultado error:', JSON.stringify(error));
     setPunchLoading(false);
     if (error || !data) {
-      Alert.alert('Erro', 'Não foi possível registrar o ponto. Tente novamente.');
+      Alert.alert('Erro', `Não foi possível registrar o ponto.\n${error?.message ?? 'Sem dados retornados'}`);
       return;
     }
     setLastPunch(data as PunchRecord);
