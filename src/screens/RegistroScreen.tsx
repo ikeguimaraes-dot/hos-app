@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
@@ -55,9 +57,9 @@ interface OvertimeRecord {
 
 interface Warning {
   id: string;
-  date: string;
-  level?: string;
-  description?: string;
+  data: string;
+  nivel?: string;
+  descricao?: string;
 }
 
 interface TipsRecord {
@@ -72,18 +74,23 @@ interface TransportVoucher {
   id: string;
   periodo: string;
   dias_uteis?: number;
-  valor_diario?: number;
-  desconto_funcionario?: number;
-  valor_empresa?: number;
+  valor_diario?: number | string;
+  desconto_funcionario?: number | string;
+  valor_empresa?: number | string;
 }
 
 interface Absence {
   id: string;
-  date: string;
-  type?: string;
-  reason?: string;
+  data: string;
+  tipo?: string;
+  motivo?: string;
   score_impact?: number;
   atestado_path?: string;
+}
+
+interface PunchRecord {
+  tipo: string;
+  timestamp: string;
 }
 
 export default function RegistroScreen({ navigation }: any) {
@@ -96,6 +103,11 @@ export default function RegistroScreen({ navigation }: any) {
   const [transport, setTransport] = useState<TransportVoucher[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [lastPunch, setLastPunch] = useState<PunchRecord | null>(null);
+  const [punchLoading, setPunchLoading] = useState(false);
+  const [punchSuccess, setPunchSuccess] = useState(false);
+  const punchScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     (async () => {
@@ -114,8 +126,107 @@ export default function RegistroScreen({ navigation }: any) {
     if (employeeId) fetchAll();
   }, [employeeId]);
 
+  async function fetchLastPunch(empId: string) {
+    const todayISO = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const midnightSP = new Date(todayISO + 'T00:00:00-03:00').toISOString();
+    const { data } = await supabase
+      .from('time_clock_punches')
+      .select('tipo, timestamp')
+      .eq('employee_id', empId)
+      .gte('timestamp', midnightSP)
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setLastPunch(data ?? null);
+  }
+
+  async function registrarPonto() {
+    if (!employeeId || punchLoading) return;
+    const proximoTipo = lastPunch?.tipo === 'entrada' ? 'saida' : 'entrada';
+    setPunchLoading(true);
+    Animated.sequence([
+      Animated.timing(punchScale, { toValue: 0.94, duration: 80, useNativeDriver: true }),
+      Animated.timing(punchScale, { toValue: 1, duration: 120, useNativeDriver: true }),
+    ]).start();
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('time_clock_punches')
+      .insert({ employee_id: employeeId, tipo: proximoTipo, timestamp: now })
+      .select('tipo, timestamp')
+      .single();
+    setPunchLoading(false);
+    if (error || !data) {
+      Alert.alert('Erro', 'Não foi possível registrar o ponto. Tente novamente.');
+      return;
+    }
+    setLastPunch(data as PunchRecord);
+    setPunchSuccess(true);
+    setTimeout(() => setPunchSuccess(false), 3000);
+  }
+
+  function renderPontoCard() {
+    const proximoTipo = lastPunch?.tipo === 'entrada' ? 'saida' : 'entrada';
+    const isEntrada = proximoTipo === 'entrada';
+    const cor = isEntrada ? COLORS.SUCCESS : COLORS.ERROR;
+    const label = isEntrada ? 'Registrar Entrada' : 'Registrar Saída';
+    const iconName = isEntrada ? 'log-in-outline' : 'log-out-outline';
+
+    let lastTime: string | null = null;
+    if (lastPunch) {
+      lastTime = new Date(lastPunch.timestamp).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Sao_Paulo',
+      });
+    }
+
+    return (
+      <View style={[styles.card, styles.pontoCard]}>
+        <Text style={styles.pontoTitle}>Bater Ponto</Text>
+
+        {punchSuccess ? (
+          <View style={styles.pontoSuccess}>
+            <Ionicons name="checkmark-circle" size={30} color={COLORS.SUCCESS} />
+            <Text style={styles.pontoSuccessText}>
+              {lastPunch?.tipo === 'entrada' ? 'Entrada' : 'Saída'} registrada às{' '}
+              {lastTime}
+            </Text>
+          </View>
+        ) : (
+          <Animated.View style={{ transform: [{ scale: punchScale }] }}>
+            <TouchableOpacity
+              style={[styles.pontoButton, { backgroundColor: cor }]}
+              onPress={registrarPonto}
+              disabled={punchLoading}
+              activeOpacity={0.85}
+            >
+              {punchLoading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <>
+                  <Ionicons name={iconName as any} size={20} color="#FFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.pontoButtonText}>{label}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        <Text style={styles.pontoSubtext}>
+          {lastPunch && !punchSuccess
+            ? `Último: ${lastPunch.tipo === 'entrada' ? 'Entrada' : 'Saída'} às ${lastTime}`
+            : !punchSuccess
+            ? 'Nenhum registro hoje'
+            : ''}
+        </Text>
+      </View>
+    );
+  }
+
   async function fetchAll() {
     if (!employeeId) return;
+
+    fetchLastPunch(employeeId);
 
     const [timeRes, overtimeRes, absenceRes, warningsRes, tipsRes, transportRes] = await Promise.all([
       supabase
@@ -132,12 +243,12 @@ export default function RegistroScreen({ navigation }: any) {
         .from('absences')
         .select('*')
         .eq('employee_id', employeeId)
-        .order('date', { ascending: false }),
+        .order('data', { ascending: false }),
       supabase
         .from('warnings')
         .select('*')
         .eq('employee_id', employeeId)
-        .order('date', { ascending: false }),
+        .order('data', { ascending: false }),
       supabase
         .from('tips_records')
         .select('*')
@@ -258,19 +369,19 @@ export default function RegistroScreen({ navigation }: any) {
   }
 
   function renderAbsenceCard(item: Absence) {
-    const isDanger = item.type?.toLowerCase().includes('injustificad');
+    const isDanger = item.tipo?.toLowerCase().includes('injustificad');
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardPeriod}>{formatDate(item.date)}</Text>
-          {item.type && (
+          <Text style={styles.cardPeriod}>{formatDate(item.data)}</Text>
+          {item.tipo && (
             <Text style={[styles.badge, isDanger ? styles.badgeDanger : styles.badgeNeutral]}>
-              {item.type}
+              {item.tipo}
             </Text>
           )}
         </View>
-        {item.reason && (
-          <Text style={styles.cardMeta}>Motivo: {item.reason}</Text>
+        {item.motivo && (
+          <Text style={styles.cardMeta}>Motivo: {item.motivo}</Text>
         )}
         {item.score_impact != null && item.score_impact !== 0 && (
           <Text style={[styles.cardMeta, { color: COLORS.ERROR, fontWeight: '600' }]}>
@@ -281,9 +392,11 @@ export default function RegistroScreen({ navigation }: any) {
     );
   }
 
-  function formatCurrency(val?: number | null) {
+  function formatCurrency(val?: number | string | null) {
     if (val == null) return '—';
-    return `R$ ${val.toFixed(2).replace('.', ',')}`;
+    const n = typeof val === 'string' ? parseFloat(val) : val;
+    if (isNaN(n)) return '—';
+    return `R$ ${n.toFixed(2).replace('.', ',')}`;
   }
 
   function renderTipsCard(item: TipsRecord) {
@@ -355,20 +468,20 @@ export default function RegistroScreen({ navigation }: any) {
       moderada: '#F97316',
       grave: '#EF4444',
     };
-    const level = item.level?.toLowerCase() || '';
-    const color = levelColors[level] || COLORS.TEXT_SECONDARY;
+    const nivel = item.nivel?.toLowerCase() || '';
+    const color = levelColors[nivel] || COLORS.TEXT_SECONDARY;
     return (
       <View style={[styles.card, { borderLeftWidth: 3, borderLeftColor: color }]}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardPeriod}>{formatDate(item.date)}</Text>
-          {item.level && (
+          <Text style={styles.cardPeriod}>{formatDate(item.data)}</Text>
+          {item.nivel && (
             <Text style={[styles.badge, { color, backgroundColor: color + '22' }]}>
-              {item.level}
+              {item.nivel}
             </Text>
           )}
         </View>
-        {item.description && (
-          <Text style={styles.cardMeta}>{item.description}</Text>
+        {item.descricao && (
+          <Text style={styles.cardMeta}>{item.descricao}</Text>
         )}
       </View>
     );

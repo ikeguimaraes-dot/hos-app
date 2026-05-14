@@ -36,42 +36,42 @@ yarn-error.*
 .env*.local
 
 # arquivos e pastas duplicadas (lixo de tentativas anteriores)
-"app 2/"
-"app 3/"
-"app 4/"
 app\ 2/
 app\ 3/
 app\ 4/
-"lib 2/"
-"lib 3/"
-"lib 4/"
 lib\ 2/
 lib\ 3/
 lib\ 4/
-"assets 2/"
 assets\ 2/
-".expo 2/"
-".expo 3/"
 .expo\ 2/
 .expo\ 3/
-".git 2/"
 .git\ 2/
-"package 2.json"
-"package 3.json"
-"package 4.json"
-"package-lock 2.json"
-"package-lock 3.json"
-"package-lock 4.json"
-"tsconfig 2.json"
-"tsconfig 3.json"
-"tsconfig 4.json"
-"app 2.json"
-"app 3.json"
-"app 4.json"
-".gitignore 2"
-".gitignore 3"
-".env 2"
+package\ 2.json
+package\ 3.json
+package\ 4.json
+package-lock\ 2.json
+package-lock\ 3.json
+package-lock\ 4.json
+tsconfig\ 2.json
+tsconfig\ 3.json
+tsconfig\ 4.json
+app\ 2.json
+app\ 3.json
+app\ 4.json
+.gitignore\ 2
+.gitignore\ 3
+.env\ 2
 hos-app-descritivo.md
+
+# estrutura raiz duplicada (Expo template gerado por engano fora de src/)
+/app/
+/components/
+/constants/
+/lib/
+
+# editor e ferramentas locais
+.vscode/
+.claude/
 
 # typescript
 *.tsbuildinfo
