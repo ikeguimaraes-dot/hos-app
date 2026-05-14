@@ -511,16 +511,6 @@ export default function RegistroScreen({ navigation }: any) {
 
   const hasData = timeRecords.length > 0 || overtime.length > 0 || absences.length > 0 || warnings.length > 0 || tips.length > 0 || transport.length > 0;
 
-  if (!hasData) {
-    return (
-      <View style={[styles.container, styles.center]}>
-        <Ionicons name="time-outline" size={64} color={COLORS.BORDER} />
-        <Text style={styles.emptyTitle}>Nenhum registro</Text>
-        <Text style={styles.emptySubtitle}>Seus registros de ponto, horas extras e ausências aparecerão aqui.</Text>
-      </View>
-    );
-  }
-
   return (
     <SectionList
       style={styles.container}
@@ -529,6 +519,14 @@ export default function RegistroScreen({ navigation }: any) {
       keyExtractor={(item) => item.id}
       renderItem={renderItem}
       renderSectionHeader={renderSectionHeader}
+      ListHeaderComponent={() => renderPontoCard()}
+      ListEmptyComponent={
+        <View style={styles.emptyInner}>
+          <Ionicons name="time-outline" size={64} color={COLORS.BORDER} />
+          <Text style={styles.emptyTitle}>Nenhum registro</Text>
+          <Text style={styles.emptySubtitle}>Seus registros de ponto, horas extras e ausências aparecerão aqui.</Text>
+        </View>
+      }
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     />
   );
@@ -639,5 +637,50 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 22,
+  },
+  pontoCard: {
+    marginBottom: 16,
+  },
+  pontoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.TEXT,
+    marginBottom: 12,
+  },
+  pontoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+  },
+  pontoButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  pontoSubtext: {
+    fontSize: 13,
+    color: COLORS.TEXT_SECONDARY,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  pontoSuccess: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 8,
+  },
+  pontoSuccessText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.SUCCESS,
+  },
+  emptyInner: {
+    alignItems: 'center',
+    padding: 32,
+    marginTop: 8,
   },
 });
