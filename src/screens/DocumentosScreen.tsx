@@ -109,10 +109,17 @@ export default function DocumentosScreen({ navigation }: any) {
 
       const docType = getDocumentType(mimeType, fileName);
 
+      const { data: emp } = await supabase
+        .from('employees')
+        .select('id, unit_id')
+        .eq('id', employeeId)
+        .single();
+
       const { error: insertError } = await supabase
         .from('documents')
         .insert({
           employee_id: employeeId,
+          unit_id: emp?.unit_id ?? null,
           name: fileName,
           type: docType,
           storage_path: storagePath,
