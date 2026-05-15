@@ -11,6 +11,9 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../lib/supabase';
 import { getSession } from '../lib/auth';
 import { COLORS } from '../lib/types';
@@ -144,27 +147,75 @@ export default function RegistroScreen({ navigation }: any) {
     if (!employeeId || punchLoading) return;
     const proximoTipo = lastPunch?.tipo === 'entrada' ? 'saida' : 'entrada';
     setPunchLoading(true);
+
     Animated.sequence([
       Animated.timing(punchScale, { toValue: 0.94, duration: 80, useNativeDriver: true }),
       Animated.timing(punchScale, { toValue: 1, duration: 120, useNativeDriver: true }),
     ]).start();
-    const now = new Date().toISOString();
-    console.log('[PONTO] inserindo:', { employee_id: employeeId, tipo: proximoTipo, timestamp_punch: now });
-    const { data, error } = await supabase
-      .from('time_clock_punches')
-      .insert({ employee_id: employeeId, tipo: proximoTipo, timestamp_punch: now })
-      .select('tipo, timestamp_punch')
-      .single();
-    console.log('[PONTO] resultado data:', JSON.stringify(data));
-    console.log('[PONTO] resultado error:', JSON.stringify(error));
-    setPunchLoading(false);
-    if (error || !data) {
-      Alert.alert('Erro', `Não foi possível registrar o ponto.\n${error?.message ?? 'Sem dados retornados'}`);
-      return;
+
+    try {
+      // 1. Localização
+      const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
+      if (locStatus !== 'granted') {
+        Alert.alert('Localização obrigatória', 'Permita o acesso à localização nas configurações para registrar o ponto.');
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+
+      // 2. Câmera frontal
+      const { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
+      if (camStatus !== 'granted') {
+        Alert.alert('Câmera obrigatória', 'Permita o acesso à câmera nas configurações para registrar o ponto.');
+        return;
+      }
+      const photo = await ImagePicker.launchCameraAsync({
+        cameraType: ImagePicker.CameraType.front,
+        quality: 0.7,
+        mediaTypes: 'images' as any,
+      });
+      if (photo.canceled || !photo.assets?.length) return;
+
+      // 3. Upload da selfie
+      const asset = photo.assets[0]!;
+      const ts = Date.now();
+      const storagePath = `pontos/${employeeId}/${ts}_${proximoTipo}.jpg`;
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+      const byteArray = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      const { error: storageError } = await supabase.storage
+        .from('documents')
+        .upload(storagePath, byteArray, { contentType: 'image/jpeg', upsert: false });
+      if (storageError) {
+        Alert.alert('Erro na foto', `Não foi possível enviar a selfie: ${storageError.message}`);
+        return;
+      }
+
+      // 4. Registra o ponto
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('time_clock_punches')
+        .insert({
+          employee_id: employeeId,
+          tipo: proximoTipo,
+          timestamp_punch: now,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          device_info: storagePath,
+        })
+        .select('tipo, timestamp_punch')
+        .single();
+
+      if (error || !data) {
+        Alert.alert('Erro', `Não foi possível registrar o ponto.\n${error?.message ?? 'Sem dados retornados'}`);
+        return;
+      }
+      setLastPunch(data as PunchRecord);
+      setPunchSuccess(true);
+      setTimeout(() => setPunchSuccess(false), 3000);
+    } catch (e: any) {
+      Alert.alert('Erro', e?.message ?? 'Erro inesperado ao registrar o ponto.');
+    } finally {
+      setPunchLoading(false);
     }
-    setLastPunch(data as PunchRecord);
-    setPunchSuccess(true);
-    setTimeout(() => setPunchSuccess(false), 3000);
   }
 
   function renderPontoCard() {
