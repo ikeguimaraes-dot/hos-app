@@ -90,7 +90,7 @@ interface Absence {
 
 interface PunchRecord {
   tipo: string;
-  timestamp: string;
+  timestamp_punch: string;
 }
 
 export default function RegistroScreen({ navigation }: any) {
@@ -131,10 +131,10 @@ export default function RegistroScreen({ navigation }: any) {
     const midnightSP = new Date(todayISO + 'T00:00:00-03:00').toISOString();
     const { data } = await supabase
       .from('time_clock_punches')
-      .select('tipo, timestamp')
+      .select('tipo, timestamp_punch')
       .eq('employee_id', empId)
-      .gte('timestamp', midnightSP)
-      .order('timestamp', { ascending: false })
+      .gte('timestamp_punch', midnightSP)
+      .order('timestamp_punch', { ascending: false })
       .limit(1)
       .maybeSingle();
     setLastPunch(data ?? null);
@@ -149,11 +149,11 @@ export default function RegistroScreen({ navigation }: any) {
       Animated.timing(punchScale, { toValue: 1, duration: 120, useNativeDriver: true }),
     ]).start();
     const now = new Date().toISOString();
-    console.log('[PONTO] inserindo:', { employee_id: employeeId, tipo: proximoTipo, timestamp: now });
+    console.log('[PONTO] inserindo:', { employee_id: employeeId, tipo: proximoTipo, timestamp_punch: now });
     const { data, error } = await supabase
       .from('time_clock_punches')
-      .insert({ employee_id: employeeId, tipo: proximoTipo, timestamp: now })
-      .select('tipo, timestamp')
+      .insert({ employee_id: employeeId, tipo: proximoTipo, timestamp_punch: now })
+      .select('tipo, timestamp_punch')
       .single();
     console.log('[PONTO] resultado data:', JSON.stringify(data));
     console.log('[PONTO] resultado error:', JSON.stringify(error));
@@ -176,7 +176,7 @@ export default function RegistroScreen({ navigation }: any) {
 
     let lastTime: string | null = null;
     if (lastPunch) {
-      lastTime = new Date(lastPunch.timestamp).toLocaleTimeString('pt-BR', {
+      lastTime = new Date(lastPunch.timestamp_punch).toLocaleTimeString('pt-BR', {
         hour: '2-digit',
         minute: '2-digit',
         timeZone: 'America/Sao_Paulo',
