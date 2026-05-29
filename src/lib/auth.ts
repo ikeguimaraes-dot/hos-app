@@ -33,7 +33,7 @@ export async function login(cpf: string, password: string): Promise<Employee> {
   console.log('[LOGIN] Step 3 - employee_id:', authRecord.employee_id);
   const { data: emp, error: empError } = await supabase
     .from('employees')
-    .select('id, full_name, cpf, department, role, email, empresa, data_admissao, status, photo_url')
+    .select('id, full_name, cpf, department, role, email, hire_date, status, photo_url')
     .eq('id', authRecord.employee_id)
     .single();
   console.log('[LOGIN] Step 3 resultado:', emp, empError);
@@ -51,8 +51,8 @@ export async function login(cpf: string, password: string): Promise<Employee> {
     email: emp.email || '',
     cargo: emp.role || '',
     departamento: emp.department || '',
-    data_admissao: emp.data_admissao || '',
-    empresa: emp.empresa || '',
+    data_admissao: emp.hire_date || '',
+    empresa: '',
     status: emp.status || '',
   };
 
