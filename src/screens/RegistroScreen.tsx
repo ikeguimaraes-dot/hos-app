@@ -59,9 +59,10 @@ interface OvertimeRecord {
 
 interface Warning {
   id: string;
-  data: string;
-  nivel?: string;
-  descricao?: string;
+  date: string;
+  level?: string;
+  description?: string;
+  score_impact?: number;
 }
 
 interface TipsRecord {
@@ -83,9 +84,9 @@ interface TransportVoucher {
 
 interface Absence {
   id: string;
-  data: string;
-  tipo?: string;
-  motivo?: string;
+  date: string;
+  type?: string;
+  reason?: string;
   score_impact?: number;
   atestado_path?: string;
 }
@@ -313,12 +314,12 @@ export default function RegistroScreen({ navigation }: any) {
         .from('absences')
         .select('*')
         .eq('employee_id', employeeId)
-        .order('data', { ascending: false }),
+        .order('date', { ascending: false }),
       supabase
         .from('warnings')
         .select('*')
         .eq('employee_id', employeeId)
-        .order('data', { ascending: false }),
+        .order('date', { ascending: false }),
       supabase
         .from('tips_records')
         .select('*')
@@ -439,19 +440,19 @@ export default function RegistroScreen({ navigation }: any) {
   }
 
   function renderAbsenceCard(item: Absence) {
-    const isDanger = item.tipo?.toLowerCase().includes('injustificad');
+    const isDanger = item.type?.toLowerCase().includes('injustificad');
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardPeriod}>{formatDate(item.data)}</Text>
-          {item.tipo && (
+          <Text style={styles.cardPeriod}>{formatDate(item.date)}</Text>
+          {item.type && (
             <Text style={[styles.badge, isDanger ? styles.badgeDanger : styles.badgeNeutral]}>
-              {item.tipo}
+              {item.type}
             </Text>
           )}
         </View>
-        {item.motivo && (
-          <Text style={styles.cardMeta}>Motivo: {item.motivo}</Text>
+        {item.reason && (
+          <Text style={styles.cardMeta}>Motivo: {item.reason}</Text>
         )}
         {item.score_impact != null && item.score_impact !== 0 && (
           <Text style={[styles.cardMeta, { color: COLORS.ERROR_TEXT, fontWeight: '600' }]}>
@@ -537,21 +538,23 @@ export default function RegistroScreen({ navigation }: any) {
       leve: '#F59E0B',
       moderada: '#F97316',
       grave: '#EF4444',
+      escrita: '#F59E0B',
+      verbal: '#94A3B8',
     };
-    const nivel = item.nivel?.toLowerCase() || '';
-    const color = levelColors[nivel] || COLORS.TEXT_SECONDARY;
+    const level = item.level?.toLowerCase() || '';
+    const color = levelColors[level] || COLORS.TEXT_SECONDARY;
     return (
       <View style={[styles.card, { borderLeftWidth: 3, borderLeftColor: color }]}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardPeriod}>{formatDate(item.data)}</Text>
-          {item.nivel && (
+          <Text style={styles.cardPeriod}>{formatDate(item.date)}</Text>
+          {item.level && (
             <Text style={[styles.badge, { color, backgroundColor: color + '22' }]}>
-              {item.nivel}
+              {item.level}
             </Text>
           )}
         </View>
-        {item.descricao && (
-          <Text style={styles.cardMeta}>{item.descricao}</Text>
+        {item.description && (
+          <Text style={styles.cardMeta}>{item.description}</Text>
         )}
       </View>
     );
