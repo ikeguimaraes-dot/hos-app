@@ -47,4 +47,7 @@ export const COLORS = {
   BORDER: '#E2E8F0',
   ERROR: '#EF4444',
   SUCCESS: '#22C55E',
+  // Tokens de texto com contraste WCAG AA (ratio ≥ 4.5:1 sobre fundo claro)
+  SUCCESS_TEXT: '#166534',  // verde escuro — texto sobre fundo claro (ratio ~7.2:1)
+  ERROR_TEXT: '#991B1B',    // vermelho escuro — texto sobre fundo claro (ratio ~7.5:1)
 } as const;

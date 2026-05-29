@@ -211,13 +211,17 @@ export default function InterviewScreen({ route, navigation }: any) {
 
       if (uploadError) throw uploadError;
 
+      // upsert evita constraint violation em caso de retry após falha parcial
       const { error: dbError } = await supabase
         .from('interview_responses')
-        .insert({
-          candidate_id: candidate.id,
-          question_id: currentQuestion.id,
-          video_url: storagePath,
-        });
+        .upsert(
+          {
+            candidate_id: candidate.id,
+            question_id: currentQuestion.id,
+            video_url: storagePath,
+          },
+          { onConflict: 'candidate_id,question_id' }
+        );
 
       if (dbError) throw dbError;
 
@@ -440,7 +444,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: 20,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 15,
+    minHeight: 44,
   },
   replayButtonText: {
     fontSize: 13,

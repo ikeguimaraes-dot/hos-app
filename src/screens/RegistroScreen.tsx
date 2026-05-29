@@ -13,7 +13,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../lib/supabase';
 import { getSession } from '../lib/auth';
 import { COLORS } from '../lib/types';
@@ -160,7 +159,16 @@ export default function RegistroScreen({ navigation }: any) {
         Alert.alert('Localização obrigatória', 'Permita o acesso à localização nas configurações para registrar o ponto.');
         return;
       }
-      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      // TODO: geofencing Haversine (validar raio por unidade — Sprint E)
+      const location = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('GPS: tempo limite excedido. Tente em local aberto.')),
+            10000
+          )
+        ),
+      ]);
 
       // 2. Câmera frontal
       const { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
@@ -175,15 +183,16 @@ export default function RegistroScreen({ navigation }: any) {
       });
       if (photo.canceled || !photo.assets?.length) return;
 
-      // 3. Upload da selfie
+      // 3. Upload da selfie — bucket dedicado punch-photos (não mistura com documentos de RH)
+      // Usa fetch→blob para evitar crash OOM em dispositivos com pouca RAM
       const asset = photo.assets[0]!;
       const ts = Date.now();
-      const storagePath = `pontos/${employeeId}/${ts}_${proximoTipo}.jpg`;
-      const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
-      const byteArray = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      const storagePath = `${employeeId}/${ts}_${proximoTipo}.jpg`;
+      const fileResponse = await fetch(asset.uri);
+      const blob = await fileResponse.blob();
       const { error: storageError } = await supabase.storage
-        .from('documents')
-        .upload(storagePath, byteArray, { contentType: 'image/jpeg', upsert: false });
+        .from('punch-photos')
+        .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
       if (storageError) {
         Alert.alert('Erro na foto', `Não foi possível enviar a selfie: ${storageError.message}`);
         return;
@@ -253,6 +262,9 @@ export default function RegistroScreen({ navigation }: any) {
               onPress={registrarPonto}
               disabled={punchLoading}
               activeOpacity={0.85}
+              accessibilityLabel={isEntrada ? 'Registrar entrada' : 'Registrar saída'}
+              accessibilityRole="button"
+              accessibilityState={{ busy: punchLoading }}
             >
               {punchLoading ? (
                 <ActivityIndicator color="#FFF" />
@@ -280,7 +292,11 @@ export default function RegistroScreen({ navigation }: any) {
   async function fetchAll() {
     if (!employeeId) return;
 
-    fetchLastPunch(employeeId);
+    try {
+      await fetchLastPunch(employeeId);
+    } catch (err) {
+      console.warn('[REGISTRO] fetchLastPunch falhou:', err);
+    }
 
     const [timeRes, overtimeRes, absenceRes, warningsRes, tipsRes, transportRes] = await Promise.all([
       supabase
@@ -366,7 +382,7 @@ export default function RegistroScreen({ navigation }: any) {
         {item.saldo_banco && (
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Saldo banco</Text>
-            <Text style={[styles.cardValue, { color: saldoPositivo ? COLORS.SUCCESS : COLORS.ERROR }]}>
+            <Text style={[styles.cardValue, { color: saldoPositivo ? COLORS.SUCCESS_TEXT : COLORS.ERROR_TEXT }]}>
               {saldoPositivo ? '+' : ''}{item.saldo_banco}
             </Text>
           </View>
@@ -411,7 +427,7 @@ export default function RegistroScreen({ navigation }: any) {
         </View>
         <View style={styles.cardRow}>
           <Text style={styles.cardLabel}>Tipo: {item.type || '—'}</Text>
-          <Text style={[styles.cardValue, { color: COLORS.SUCCESS }]}>
+          <Text style={[styles.cardValue, { color: COLORS.SUCCESS_TEXT }]}>
             {item.hours != null ? `${item.hours}h` : '—'}
           </Text>
         </View>
@@ -438,7 +454,7 @@ export default function RegistroScreen({ navigation }: any) {
           <Text style={styles.cardMeta}>Motivo: {item.motivo}</Text>
         )}
         {item.score_impact != null && item.score_impact !== 0 && (
-          <Text style={[styles.cardMeta, { color: COLORS.ERROR, fontWeight: '600' }]}>
+          <Text style={[styles.cardMeta, { color: COLORS.ERROR_TEXT, fontWeight: '600' }]}>
             Impacto no score: {item.score_impact} pts
           </Text>
         )}
@@ -478,7 +494,7 @@ export default function RegistroScreen({ navigation }: any) {
         )}
         <View style={[styles.cardRow, { marginTop: 4, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 }]}>
           <Text style={styles.cardLabel}>Total gorjeta</Text>
-          <Text style={[styles.cardValue, { color: COLORS.SUCCESS }]}>{formatCurrency(total)}</Text>
+          <Text style={[styles.cardValue, { color: COLORS.SUCCESS_TEXT }]}>{formatCurrency(total)}</Text>
         </View>
       </View>
     );
@@ -503,13 +519,13 @@ export default function RegistroScreen({ navigation }: any) {
         {item.desconto_funcionario != null && (
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Desconto funcionário</Text>
-            <Text style={[styles.cardValue, { color: COLORS.ERROR }]}>{formatCurrency(item.desconto_funcionario)}</Text>
+            <Text style={[styles.cardValue, { color: COLORS.ERROR_TEXT }]}>{formatCurrency(item.desconto_funcionario)}</Text>
           </View>
         )}
         {item.valor_empresa != null && (
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Valor empresa</Text>
-            <Text style={[styles.cardValue, { color: COLORS.SUCCESS }]}>{formatCurrency(item.valor_empresa)}</Text>
+            <Text style={[styles.cardValue, { color: COLORS.SUCCESS_TEXT }]}>{formatCurrency(item.valor_empresa)}</Text>
           </View>
         )}
       </View>

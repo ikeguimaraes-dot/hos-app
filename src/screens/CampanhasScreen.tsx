@@ -31,9 +31,9 @@ interface Campaign {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  saude: '#22C55E',
-  evento: '#6366F1',
-  comunicado: '#F59E0B',
+  saude: '#166534',    // verde escuro — contraste WCAG AA sobre fundos claros
+  evento: '#C4622D',   // HOS Brasa — cor primária KPH
+  comunicado: '#92400E', // âmbar escuro — contraste WCAG AA
 };
 
 const CATEGORY_ICONS: Record<string, any> = {

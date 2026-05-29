@@ -80,7 +80,8 @@ export default function HomeScreen({ navigation }: any) {
     const now = new Date();
     const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
-    const [scoreRes, holeriteRes, bancoRes, faltasRes, podiumRes] = await Promise.all([
+    // Promise.allSettled garante que a Home carrega mesmo se uma query individual falhar
+    const [scoreResult, holeriteResult, bancoResult, faltasResult, podiumResult] = await Promise.allSettled([
       supabase.from('employees').select('score, photo_url').eq('id', empId).single(),
       supabase.from('payslips').select('periodo, valor_liquido').eq('employee_id', empId).order('periodo', { ascending: false }).limit(1).single(),
       supabase.from('time_records').select('saldo_banco, banco_horas_acumulado').eq('employee_id', empId).order('periodo', { ascending: false }).limit(1).single(),
@@ -88,20 +89,24 @@ export default function HomeScreen({ navigation }: any) {
       supabase.from('employees').select('id, full_name, photo_url, score').not('score', 'is', null).order('score', { ascending: false }).limit(3),
     ]);
 
-    if (scoreRes.error) console.error('[HOME] score error:', scoreRes.error);
-    if (scoreRes.data?.photo_url) setPhotoUrl(scoreRes.data.photo_url);
-    if (holeriteRes.error && holeriteRes.error.code !== 'PGRST116') console.error('[HOME] holerite error:', holeriteRes.error);
-    if (bancoRes.error && bancoRes.error.code !== 'PGRST116') console.error('[HOME] banco error:', bancoRes.error);
-    if (faltasRes.error) console.error('[HOME] faltas error:', faltasRes.error);
-    console.log('[PODIUM] data:', JSON.stringify(podiumRes.data));
-    console.log('[PODIUM] error:', JSON.stringify(podiumRes.error));
-    if (podiumRes.data) setPodium(podiumRes.data);
+    const scoreRes   = scoreResult.status   === 'fulfilled' ? scoreResult.value   : null;
+    const holeriteRes = holeriteResult.status === 'fulfilled' ? holeriteResult.value : null;
+    const bancoRes   = bancoResult.status   === 'fulfilled' ? bancoResult.value   : null;
+    const faltasRes  = faltasResult.status  === 'fulfilled' ? faltasResult.value  : null;
+    const podiumRes  = podiumResult.status  === 'fulfilled' ? podiumResult.value  : null;
+
+    if (scoreRes?.error) console.error('[HOME] score error:', scoreRes.error);
+    if (scoreRes?.data?.photo_url) setPhotoUrl(scoreRes.data.photo_url);
+    if (holeriteRes?.error && holeriteRes.error.code !== 'PGRST116') console.error('[HOME] holerite error:', holeriteRes.error);
+    if (bancoRes?.error && bancoRes.error.code !== 'PGRST116') console.error('[HOME] banco error:', bancoRes.error);
+    if (faltasRes?.error) console.error('[HOME] faltas error:', faltasRes.error);
+    if (podiumRes?.data) setPodium(podiumRes.data);
 
     setDashboard({
-      score: scoreRes.data?.score ?? null,
-      ultimoHolerite: holeriteRes.data || null,
-      bancoHoras: bancoRes.data || null,
-      faltasMes: faltasRes.count || 0,
+      score: scoreRes?.data?.score ?? null,
+      ultimoHolerite: holeriteRes?.data || null,
+      bancoHoras: bancoRes?.data || null,
+      faltasMes: faltasRes?.count || 0,
     });
   }
 
@@ -200,10 +205,10 @@ export default function HomeScreen({ navigation }: any) {
           {emp.full_name?.split(' ')[0]}
         </Text>
         <View style={[styles.podiumScoreBadge, { backgroundColor: colors[position] + '22', borderColor: colors[position] + '66' }]}>
-          <Text style={[styles.podiumScore, { color: colors[position] }]}>⭐ {emp.score}</Text>
+          <Text style={[styles.podiumScore, { color: COLORS.TEXT }]}>⭐ {emp.score}</Text>
         </View>
         <View style={[styles.podiumBase, { height: heights[position], backgroundColor: colors[position] + '22', borderTopColor: colors[position] }]}>
-          <Text style={[styles.podiumPosition, { color: colors[position] }]}>{position}</Text>
+          <Text style={[styles.podiumPosition, { color: COLORS.TEXT }]}>{position}</Text>
         </View>
       </View>
     );
@@ -233,7 +238,14 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.roleText}>{employee?.cargo || ''}</Text>
           </View>
           <View style={styles.welcomeRight}>
-            <TouchableOpacity onPress={handleChangePhoto} disabled={uploadingPhoto} style={styles.avatarContainer}>
+            <TouchableOpacity
+              onPress={handleChangePhoto}
+              disabled={uploadingPhoto}
+              style={styles.avatarContainer}
+              accessibilityLabel="Alterar foto de perfil"
+              accessibilityRole="button"
+              accessibilityHint="Abre opções para tirar foto ou escolher da galeria"
+            >
               {photoUrl ? (
                 <Image source={{ uri: photoUrl }} style={styles.avatar} />
               ) : (
@@ -245,7 +257,13 @@ export default function HomeScreen({ navigation }: any) {
                 <Ionicons name="camera" size={10} color="#FFF" />
               </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.logoutButton}
+              accessibilityLabel="Sair da conta"
+              accessibilityRole="button"
+              accessibilityHint="Encerra a sessão e retorna ao login"
+            >
               <Ionicons name="log-out-outline" size={22} color="rgba(255,255,255,0.8)" />
             </TouchableOpacity>
           </View>
@@ -286,7 +304,7 @@ export default function HomeScreen({ navigation }: any) {
           <Ionicons name="time-outline" size={22} color={COLORS.PRIMARY} />
           <Text style={styles.dashLabel}>Banco de Horas</Text>
           {dashboard.bancoHoras?.saldo_banco ? (
-            <Text style={[styles.dashValue, { color: saldoPositivo ? COLORS.SUCCESS : COLORS.ERROR }]}>
+            <Text style={[styles.dashValue, { color: saldoPositivo ? COLORS.SUCCESS_TEXT : COLORS.ERROR_TEXT }]}>
               {saldoPositivo ? '+' : ''}{dashboard.bancoHoras.saldo_banco}
             </Text>
           ) : (
@@ -301,7 +319,7 @@ export default function HomeScreen({ navigation }: any) {
         <TouchableOpacity style={styles.dashCard} onPress={() => navigation.navigate('Registro')}>
           <Ionicons name="alert-circle-outline" size={22} color={dashboard.faltasMes > 0 ? COLORS.ERROR : COLORS.SUCCESS} />
           <Text style={styles.dashLabel}>Faltas no Mês</Text>
-          <Text style={[styles.dashValue, { color: dashboard.faltasMes > 0 ? COLORS.ERROR : COLORS.SUCCESS }]}>
+          <Text style={[styles.dashValue, { color: dashboard.faltasMes > 0 ? COLORS.ERROR_TEXT : COLORS.SUCCESS_TEXT }]}>
             {dashboard.faltasMes}
           </Text>
         </TouchableOpacity>
@@ -508,7 +526,11 @@ const styles = StyleSheet.create({
   logoutButton: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 10,
-    padding: 10,
+    padding: 11,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: 18,
