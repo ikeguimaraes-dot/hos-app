@@ -79,7 +79,7 @@ export default function CampanhasScreen() {
       .from('campaigns')
       .select('*')
       .eq('active', true)
-      .or(`target.eq.all,and(target.eq.department,target_value.eq.${employee.departamento}),and(target.eq.company,target_value.eq.${employee.empresa})`)
+      .or(`target.eq.all,and(target.eq.department,target_value.eq.${employee.departamento})`)
       .order('created_at', { ascending: false });
 
     if (error) console.error('[CAMPANHAS] error:', error);
