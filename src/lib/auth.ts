@@ -21,6 +21,7 @@ export async function login(cpf: string, password: string): Promise<Employee> {
   }
 
   // Step 2 — Verificar senha
+  // TODO: migrar para Supabase Auth nativo com bcrypt — senha em plaintext é dívida técnica P0 de segurança
   console.log('[LOGIN] Step 2 - verificando senha');
   if (authRecord.password_hash !== password) {
     console.log('[LOGIN] Step 2 - senha incorreta');
@@ -32,7 +33,7 @@ export async function login(cpf: string, password: string): Promise<Employee> {
   console.log('[LOGIN] Step 3 - employee_id:', authRecord.employee_id);
   const { data: emp, error: empError } = await supabase
     .from('employees')
-    .select('id, full_name, department, role')
+    .select('id, full_name, cpf, department, role, email, empresa, data_admissao, status, photo_url')
     .eq('id', authRecord.employee_id)
     .single();
   console.log('[LOGIN] Step 3 resultado:', emp, empError);
@@ -45,14 +46,14 @@ export async function login(cpf: string, password: string): Promise<Employee> {
   console.log('[LOGIN] Step 4 - salvando sessão no AsyncStorage');
   const employee: Employee = {
     id: emp.id,
-    cpf: cpf,
+    cpf: emp.cpf || cpf,
     nome: emp.full_name,
-    email: '',
+    email: emp.email || '',
     cargo: emp.role || '',
     departamento: emp.department || '',
-    data_admissao: '',
-    empresa: '',
-    status: '',
+    data_admissao: emp.data_admissao || '',
+    empresa: emp.empresa || '',
+    status: emp.status || '',
   };
 
   const session: AuthSession = {

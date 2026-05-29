@@ -331,8 +331,10 @@ const styles = StyleSheet.create({
   pdfButton: {
     backgroundColor: '#EEF2FF',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 12,
     borderRadius: 8,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   pdfButtonText: {
     fontSize: 13,

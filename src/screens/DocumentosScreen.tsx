@@ -42,9 +42,13 @@ export default function DocumentosScreen({ navigation }: any) {
   useEffect(() => {
     (async () => {
       const session = await getSession();
-      if (session) {
-        setEmployeeId(session.employee.id);
+      if (!session) {
+        Alert.alert('Sessão expirada', 'Faça login novamente.', [
+          { text: 'OK', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Login' }] }) },
+        ]);
+        return;
       }
+      setEmployeeId(session.employee.id);
     })();
   }, []);
 
@@ -402,9 +406,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
     borderRadius: 8,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 14,
     borderWidth: 1,
     borderColor: COLORS.BORDER,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   viewButtonText: {
     fontSize: 13,
