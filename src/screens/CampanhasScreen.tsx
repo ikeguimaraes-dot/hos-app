@@ -104,7 +104,13 @@ export default function CampanhasScreen() {
     const label = CATEGORY_LABELS[item.category] || item.category;
 
     return (
-      <TouchableOpacity style={styles.card} onPress={() => setSelected(item)} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => setSelected(item)}
+        activeOpacity={0.85}
+        accessibilityLabel={`${label}: ${item.title}. Toque para ver detalhes.`}
+        accessibilityRole="button"
+      >
         {item.image_url && (
           <Image source={{ uri: item.image_url }} style={styles.cardImage} resizeMode="cover" />
         )}
@@ -147,17 +153,27 @@ export default function CampanhasScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="megaphone-outline" size={64} color={COLORS.BORDER} />
-            <Text style={styles.emptyTitle}>O ranking atualiza semanalmente</Text>
+            <Text style={styles.emptyTitle}>Nenhuma campanha ativa</Text>
             <Text style={styles.emptySubtitle}>As campanhas internas da equipe aparecem aqui.</Text>
           </View>
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       />
 
-      <Modal visible={!!selected} animationType="slide" onRequestClose={() => setSelected(null)}>
+      <Modal
+        visible={!!selected}
+        animationType="slide"
+        onRequestClose={() => setSelected(null)}
+        accessibilityViewIsModal
+      >
         <View style={styles.modalContainer}>
-          <TouchableOpacity style={styles.modalClose} onPress={() => setSelected(null)}>
-            <Ionicons name="close" size={24} color={COLORS.TEXT} />
+          <TouchableOpacity
+            style={styles.modalClose}
+            onPress={() => setSelected(null)}
+            accessibilityLabel="Fechar campanha"
+            accessibilityRole="button"
+          >
+            <Ionicons name="close" size={24} color={COLORS.TEXT} accessible={false} />
           </TouchableOpacity>
           {selected && (
             <ScrollView contentContainerStyle={styles.modalContent}>
@@ -223,19 +239,19 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 8,
   },
-  categoryText: { fontSize: 11, fontWeight: '700' },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.TEXT, marginBottom: 6 },
-  cardDescription: { fontSize: 14, color: COLORS.TEXT_SECONDARY, lineHeight: 20, marginBottom: 8 },
-  cardDate: { fontSize: 12, color: COLORS.TEXT_SECONDARY },
+  categoryText: { fontSize: 11, fontFamily: 'InstrumentSans_600SemiBold' },
+  cardTitle: { fontSize: 16, fontFamily: 'InstrumentSans_600SemiBold', color: COLORS.TEXT, marginBottom: 6 },
+  cardDescription: { fontSize: 14, fontFamily: 'InstrumentSans_400Regular', color: COLORS.TEXT_SECONDARY, lineHeight: 20, marginBottom: 8 },
+  cardDate: { fontSize: 12, fontFamily: 'InstrumentSans_400Regular', color: COLORS.TEXT_SECONDARY },
   empty: { alignItems: 'center', padding: 32 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: COLORS.TEXT, marginTop: 16 },
-  emptySubtitle: { fontSize: 15, color: COLORS.TEXT_SECONDARY, textAlign: 'center', marginTop: 8, lineHeight: 22 },
+  emptyTitle: { fontSize: 20, fontFamily: 'Fraunces_700Bold', color: COLORS.TEXT, marginTop: 16 },
+  emptySubtitle: { fontSize: 15, fontFamily: 'InstrumentSans_400Regular', color: COLORS.TEXT_SECONDARY, textAlign: 'center', marginTop: 8, lineHeight: 22 },
   modalContainer: { flex: 1, backgroundColor: COLORS.BACKGROUND },
   modalClose: { position: 'absolute', top: 56, right: 20, zIndex: 10, backgroundColor: COLORS.CARD, borderRadius: 20, padding: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4 },
   modalContent: { paddingBottom: 40 },
   modalImage: { width: '100%', height: 260 },
   modalBody: { padding: 20 },
-  modalTitle: { fontSize: 22, fontWeight: '800', color: COLORS.TEXT, marginTop: 12, marginBottom: 8 },
-  modalDate: { fontSize: 13, color: COLORS.TEXT_SECONDARY, marginBottom: 16 },
-  modalDescription: { fontSize: 16, color: COLORS.TEXT, lineHeight: 26 },
+  modalTitle: { fontSize: 22, fontFamily: 'Fraunces_700Bold', color: COLORS.TEXT, marginTop: 12, marginBottom: 8, letterSpacing: -0.5 },
+  modalDate: { fontSize: 13, fontFamily: 'InstrumentSans_400Regular', color: COLORS.TEXT_SECONDARY, marginBottom: 16 },
+  modalDescription: { fontSize: 16, fontFamily: 'InstrumentSans_400Regular', color: COLORS.TEXT, lineHeight: 26 },
 });

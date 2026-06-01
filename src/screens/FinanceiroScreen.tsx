@@ -105,9 +105,6 @@ export default function FinanceiroScreen({ navigation }: any) {
         .order('periodo', { ascending: false }),
     ]);
 
-    if (payslipRes.error) console.error('[FINANCEIRO] payslips error:', payslipRes.error);
-    if (tipsRes.error) console.error('[FINANCEIRO] tips error:', tipsRes.error);
-    if (transportRes.error) console.error('[FINANCEIRO] transport error:', transportRes.error);
 
     setPayslips(payslipRes.data || []);
     setTips(tipsRes.data || []);
@@ -140,8 +137,7 @@ export default function FinanceiroScreen({ navigation }: any) {
       return;
     }
 
-    console.error('[FINANCEIRO] PDF error:', error, error2);
-    Alert.alert('Erro', 'Não foi possível abrir o PDF');
+    Alert.alert('Arquivo indisponível', 'Não foi possível abrir o holerite. Tente novamente mais tarde.');
   }
 
   type SectionData = { title: string; data: any[]; type: string };
@@ -177,13 +173,13 @@ export default function FinanceiroScreen({ navigation }: any) {
         {/* Vencimentos */}
         <View style={styles.cardRow}>
           <Text style={styles.cardLabel}>Total Vencimentos</Text>
-          <Text style={[styles.cardValue, { color: COLORS.SUCCESS }]}>{formatCurrency(item.total_vencimentos)}</Text>
+          <Text style={[styles.cardValue, { color: COLORS.SUCCESS_TEXT }]}>{formatCurrency(item.total_vencimentos)}</Text>
         </View>
 
         {/* Descontos */}
         <View style={styles.cardRow}>
           <Text style={styles.cardLabel}>Total Descontos</Text>
-          <Text style={[styles.cardValue, { color: COLORS.ERROR }]}>
+          <Text style={[styles.cardValue, { color: COLORS.ERROR_TEXT }]}>
             {item.total_descontos != null ? `-R$ ${Math.abs(item.total_descontos).toFixed(2).replace('.', ',')}` : '—'}
           </Text>
         </View>
@@ -230,7 +226,7 @@ export default function FinanceiroScreen({ navigation }: any) {
         <View style={styles.card}>
           <View style={styles.cardRow}>
             <Text style={styles.cardPeriod}>{formatPeriodo(item.periodo)}</Text>
-            <Text style={[styles.cardValue, { color: COLORS.SUCCESS }]}>{formatCurrency(item.valor)}</Text>
+            <Text style={[styles.cardValue, { color: COLORS.SUCCESS_TEXT }]}>{formatCurrency(item.valor)}</Text>
           </View>
         </View>
       );
@@ -300,11 +296,12 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontFamily: 'Fraunces_700Bold',
     color: COLORS.TEXT,
     marginTop: 16,
     marginBottom: 10,
+    letterSpacing: -0.3,
   },
   card: {
     backgroundColor: COLORS.CARD,
@@ -329,7 +326,7 @@ const styles = StyleSheet.create({
     color: COLORS.TEXT,
   },
   pdfButton: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.CREME,
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 8,
@@ -338,7 +335,7 @@ const styles = StyleSheet.create({
   },
   pdfButtonText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'InstrumentSans_600SemiBold',
     color: COLORS.PRIMARY,
   },
   cardRow: {
