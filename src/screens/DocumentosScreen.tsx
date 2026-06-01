@@ -16,8 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as WebBrowser from 'expo-web-browser';
-import { WebView } from 'react-native-webview';
 import { supabase } from '../lib/supabase';
 import { getSession } from '../lib/auth';
 import { COLORS } from '../lib/types';
@@ -37,7 +35,6 @@ export default function DocumentosScreen({ navigation }: any) {
   const [uploading, setUploading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
-  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -63,9 +60,8 @@ export default function DocumentosScreen({ navigation }: any) {
       .from('documents')
       .select('id, name, type, storage_path, uploaded_at')
       .eq('employee_id', employeeId)
-      .order('id', { ascending: false });
+      .order('uploaded_at', { ascending: false });
 
-    if (error) console.error('[DOCUMENTOS] fetch error:', error);
     setDocuments(data || []);
     setLoading(false);
   }
@@ -104,9 +100,6 @@ export default function DocumentosScreen({ navigation }: any) {
         .from('documents')
         .upload(storagePath, byteArray, { contentType: mimeType });
 
-      console.log('[DOC UPLOAD] storage upload data:', storageData);
-      console.log('[DOC UPLOAD] storage upload error:', storageError);
-
       if (storageError) {
         throw new Error(storageError.message);
       }
@@ -129,8 +122,6 @@ export default function DocumentosScreen({ navigation }: any) {
           storage_path: storagePath,
         });
 
-      if (insertError) console.error('[DOCUMENTOS] insert error:', insertError);
-
       if (insertError) {
         throw new Error(insertError.message);
       }
@@ -138,8 +129,7 @@ export default function DocumentosScreen({ navigation }: any) {
       await fetchDocuments();
       Alert.alert('Sucesso', 'Documento enviado com sucesso.');
     } catch (error: any) {
-      console.error('[DOCUMENTOS] upload error:', error);
-      Alert.alert('Erro no envio', error.message || 'Não foi possível enviar o documento.');
+      Alert.alert('Erro no envio', 'Não foi possível enviar o arquivo. Tente novamente.');
     } finally {
       setUploading(false);
     }
@@ -184,25 +174,20 @@ export default function DocumentosScreen({ navigation }: any) {
   }
 
   async function handleView(doc: Document) {
-    console.log('[VIEW] botao tocado:', doc.name);
-    console.log('[VIEW] storage_path:', doc.storage_path);
     const { data, error } = await supabase.storage
       .from('documents')
       .createSignedUrl(doc.storage_path, 3600);
-    console.log('[VIEW] signedUrl:', data?.signedUrl);
-    console.log('[VIEW] error:', JSON.stringify(error));
     if (error || !data?.signedUrl) {
-      console.log('[VIEW] FALHOU - abortando');
+      Alert.alert('Arquivo indisponível', 'Não foi possível abrir o documento. Tente novamente.');
       return;
     }
-    console.log('[VIEW] abrindo URL...');
     Linking.openURL(data.signedUrl);
   }
 
-  function getIcon(type: string) {
-    if (type === 'pdf') return '📄';
-    if (type === 'image') return '🖼️';
-    return '📋';
+  function getIconName(type: string): any {
+    if (type === 'holerite' || type === 'contrato' || type === 'admissao') return 'document-text-outline';
+    if (type === 'ferias') return 'sunny-outline';
+    return 'document-outline';
   }
 
   function formatDate(dateStr: string) {
@@ -218,15 +203,20 @@ export default function DocumentosScreen({ navigation }: any) {
     return (
       <View style={styles.card}>
         <View style={styles.cardRow}>
-          <Text style={styles.cardIcon}>{getIcon(item.type)}</Text>
+          <Ionicons name={getIconName(item.type)} size={26} color={COLORS.PRIMARY} style={{ marginRight: 12 }} accessible={false} />
           <View style={styles.cardInfo}>
             <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
             <Text style={styles.cardMeta}>
               {item.type.toUpperCase()}{item.uploaded_at ? ` · ${formatDate(item.uploaded_at)}` : ''}
             </Text>
           </View>
-          <TouchableOpacity style={styles.viewButton} onPress={() => handleView(item)}>
-            <Text style={styles.viewButtonText}>Visualizar</Text>
+          <TouchableOpacity
+            style={styles.viewButton}
+            onPress={() => handleView(item)}
+            accessibilityLabel={`Visualizar documento ${item.name}`}
+            accessibilityRole="button"
+          >
+            <Text style={styles.viewButtonText}>Abrir</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -252,6 +242,9 @@ export default function DocumentosScreen({ navigation }: any) {
         style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
         onPress={() => setModalVisible(true)}
         disabled={uploading}
+        accessibilityLabel={uploading ? 'Enviando documento...' : 'Enviar novo documento'}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: uploading, busy: uploading }}
       >
         {uploading ? (
           <View style={styles.uploadingRow}>
@@ -280,48 +273,47 @@ export default function DocumentosScreen({ navigation }: any) {
         />
       )}
 
-      <Modal visible={!!viewerUrl} animationType="slide" onRequestClose={() => setViewerUrl(null)}>
-        <View style={{ flex: 1, backgroundColor: '#000' }}>
-          <TouchableOpacity
-            onPress={() => setViewerUrl(null)}
-            style={{ padding: 16, paddingTop: 56, backgroundColor: '#1a1a1a' }}
-          >
-            <Text style={{ color: '#fff', fontSize: 16 }}>← Fechar</Text>
-          </TouchableOpacity>
-          {viewerUrl && (
-            <WebView
-              source={{ uri: viewerUrl }}
-              style={{ flex: 1 }}
-              originWhitelist={['*']}
-              onError={(e) => console.log('[VIEWER] erro:', e.nativeEvent)}
-            />
-          )}
-        </View>
-      </Modal>
-
       <Modal
         visible={modalVisible}
         transparent
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
+        accessibilityViewIsModal
       >
-        <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
+        <Pressable
+          style={styles.overlay}
+          onPress={() => setModalVisible(false)}
+          accessibilityLabel="Fechar painel de envio"
+          accessibilityRole="button"
+        >
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>Enviar documento</Text>
 
-            <TouchableOpacity style={styles.sheetOption} onPress={handleCamera}>
-              <Ionicons name="camera-outline" size={24} color={COLORS.PRIMARY} />
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={handleCamera}
+              accessibilityLabel="Tirar foto com a câmera"
+              accessibilityRole="button"
+            >
+              <Ionicons name="camera-outline" size={24} color={COLORS.PRIMARY} accessible={false} />
               <Text style={styles.sheetOptionText}>Tirar foto</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sheetOption} onPress={handleDocumentPicker}>
-              <Ionicons name="document-outline" size={24} color={COLORS.PRIMARY} />
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={handleDocumentPicker}
+              accessibilityLabel="Escolher arquivo PDF da memória"
+              accessibilityRole="button"
+            >
+              <Ionicons name="document-outline" size={24} color={COLORS.PRIMARY} accessible={false} />
               <Text style={styles.sheetOptionText}>Escolher arquivo PDF</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.sheetCancel}
               onPress={() => setModalVisible(false)}
+              accessibilityLabel="Cancelar"
+              accessibilityRole="button"
             >
               <Text style={styles.sheetCancelText}>Cancelar</Text>
             </TouchableOpacity>
@@ -352,7 +344,7 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     color: '#FFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'InstrumentSans_600SemiBold',
   },
   uploadingRow: {
     flexDirection: 'row',
@@ -385,20 +377,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  cardIcon: {
-    fontSize: 28,
-    marginRight: 12,
-  },
   cardInfo: {
     flex: 1,
   },
   cardName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'InstrumentSans_600SemiBold',
     color: COLORS.TEXT,
   },
   cardMeta: {
     fontSize: 13,
+    fontFamily: 'InstrumentSans_400Regular',
     color: COLORS.TEXT_SECONDARY,
     marginTop: 2,
   },
@@ -414,7 +403,7 @@ const styles = StyleSheet.create({
   },
   viewButtonText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'InstrumentSans_600SemiBold',
     color: COLORS.PRIMARY,
   },
   empty: {
@@ -425,12 +414,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'Fraunces_700Bold',
     color: COLORS.TEXT,
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 15,
+    fontFamily: 'InstrumentSans_400Regular',
     color: COLORS.TEXT_SECONDARY,
     textAlign: 'center',
     marginTop: 8,
@@ -450,7 +440,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'Fraunces_700Bold',
     color: COLORS.TEXT,
     marginBottom: 20,
   },
@@ -460,19 +450,23 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.BORDER,
+    minHeight: 56,
   },
   sheetOptionText: {
     fontSize: 16,
+    fontFamily: 'InstrumentSans_400Regular',
     color: COLORS.TEXT,
     marginLeft: 14,
   },
   sheetCancel: {
     alignItems: 'center',
     paddingTop: 20,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   sheetCancelText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'InstrumentSans_500Medium',
     color: COLORS.TEXT_SECONDARY,
   },
 });
