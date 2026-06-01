@@ -55,7 +55,9 @@
         {
           "cameraPermission": "O HOS App usa a câmera para tirar a selfie no registro de ponto."
         }
-      ]
+      ],
+      "expo-font",
+      "@sentry/react-native"
     ]
   }
 }

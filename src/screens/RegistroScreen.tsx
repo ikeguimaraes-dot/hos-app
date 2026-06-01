@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
 import { getSession } from '../lib/auth';
 import { COLORS } from '../lib/types';
@@ -110,6 +111,7 @@ export default function RegistroScreen({ navigation }: any) {
   const [lastPunch, setLastPunch] = useState<PunchRecord | null>(null);
   const [punchLoading, setPunchLoading] = useState(false);
   const [punchSuccess, setPunchSuccess] = useState(false);
+  const [punchStep, setPunchStep] = useState<'idle' | 'gps' | 'camera' | 'upload' | 'done'>('idle');
   const punchScale = useRef(new Animated.Value(1)).current;
   const punchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -155,6 +157,7 @@ export default function RegistroScreen({ navigation }: any) {
     if (!employeeId || punchLoading) return;
     const proximoTipo = lastPunch?.tipo === 'entrada' ? 'saida' : 'entrada';
     setPunchLoading(true);
+    setPunchStep('gps');
 
     Animated.sequence([
       Animated.timing(punchScale, { toValue: 0.94, duration: 80, useNativeDriver: true }),
@@ -165,7 +168,7 @@ export default function RegistroScreen({ navigation }: any) {
       // 1. Localização
       const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
       if (locStatus !== 'granted') {
-        Alert.alert('Localização obrigatória', 'Permita o acesso à localização nas configurações para registrar o ponto.');
+        Alert.alert('Localização necessária', 'Permita o acesso à localização para registrar o ponto.');
         return;
       }
       // TODO: geofencing Haversine (validar raio por unidade — Sprint E)
@@ -173,27 +176,28 @@ export default function RegistroScreen({ navigation }: any) {
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
         new Promise<never>((_, reject) =>
           setTimeout(
-            () => reject(new Error('GPS: tempo limite excedido. Tente em local aberto.')),
+            () => reject(new Error('GPS lento. Tente em local aberto ou aguarde alguns segundos.')),
             10000
           )
         ),
       ]);
 
       // 2. Câmera frontal
+      setPunchStep('camera');
       const { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
       if (camStatus !== 'granted') {
-        Alert.alert('Câmera obrigatória', 'Permita o acesso à câmera nas configurações para registrar o ponto.');
+        Alert.alert('Câmera necessária', 'Permita o acesso à câmera para tirar a selfie do ponto.');
         return;
       }
       const photo = await ImagePicker.launchCameraAsync({
         cameraType: ImagePicker.CameraType.front,
-        quality: 0.7,
+        quality: 0.6,
         mediaTypes: 'images' as any,
       });
       if (photo.canceled || !photo.assets?.length) return;
 
-      // 3. Upload da selfie — bucket dedicado punch-photos (não mistura com documentos de RH)
-      // Usa fetch→blob para evitar crash OOM em dispositivos com pouca RAM
+      // 3. Upload da selfie — fetch→blob evita OOM em dispositivos com pouca RAM
+      setPunchStep('upload');
       const asset = photo.assets[0]!;
       const ts = Date.now();
       const storagePath = `${employeeId}/${ts}_${proximoTipo}.jpg`;
@@ -203,7 +207,7 @@ export default function RegistroScreen({ navigation }: any) {
         .from('punch-photos')
         .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
       if (storageError) {
-        Alert.alert('Erro na foto', `Não foi possível enviar a selfie: ${storageError.message}`);
+        Alert.alert('Erro no envio', 'Não foi possível enviar a selfie. Tente novamente.');
         return;
       }
 
@@ -223,23 +227,36 @@ export default function RegistroScreen({ navigation }: any) {
         .single();
 
       if (error || !data) {
-        Alert.alert('Erro', `Não foi possível registrar o ponto.\n${error?.message ?? 'Sem dados retornados'}`);
+        Alert.alert('Sem conexão', 'Não foi possível registrar. Verifique sua internet e tente novamente.');
         return;
       }
+
+      // Sucesso — haptic + animação
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPunchStep('done');
       setLastPunch(data as PunchRecord);
       setPunchSuccess(true);
       punchTimerRef.current = setTimeout(() => setPunchSuccess(false), 3000);
     } catch (e: any) {
-      Alert.alert('Erro', e?.message ?? 'Erro inesperado ao registrar o ponto.');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Algo deu errado', e?.message ?? 'Verifique sua conexão e tente novamente.');
     } finally {
       setPunchLoading(false);
+      setPunchStep('idle');
     }
   }
+
+  const STEP_LABELS: Record<string, string> = {
+    gps: 'Localizando...',
+    camera: 'Abrindo câmera...',
+    upload: 'Enviando selfie...',
+    done: 'Registrado!',
+  };
 
   function renderPontoCard() {
     const proximoTipo = lastPunch?.tipo === 'entrada' ? 'saida' : 'entrada';
     const isEntrada = proximoTipo === 'entrada';
-    const cor = isEntrada ? COLORS.SUCCESS : COLORS.ERROR;
+    const cor = isEntrada ? COLORS.PRIMARY : COLORS.CARVAO;
     const label = isEntrada ? 'Registrar Entrada' : 'Registrar Saída';
     const iconName = isEntrada ? 'log-in-outline' : 'log-out-outline';
 
@@ -276,7 +293,10 @@ export default function RegistroScreen({ navigation }: any) {
               accessibilityState={{ busy: punchLoading }}
             >
               {punchLoading ? (
-                <ActivityIndicator color="#FFF" />
+                <>
+                  <ActivityIndicator color="#FFF" size="small" style={{ marginRight: 8 }} />
+                  <Text style={styles.pontoButtonText}>{STEP_LABELS[punchStep] ?? 'Processando...'}</Text>
+                </>
               ) : (
                 <>
                   <Ionicons name={iconName as any} size={20} color="#FFF" style={{ marginRight: 8 }} />
@@ -287,11 +307,11 @@ export default function RegistroScreen({ navigation }: any) {
           </Animated.View>
         )}
 
-        <Text style={styles.pontoSubtext}>
+        <Text style={styles.pontoSubtext} accessibilityLiveRegion="polite">
           {lastPunch && !punchSuccess
-            ? `Último: ${lastPunch.tipo === 'entrada' ? 'Entrada' : 'Saída'} às ${lastTime}`
+            ? `Último registro: ${lastPunch.tipo === 'entrada' ? 'entrada' : 'saída'} às ${lastTime}`
             : !punchSuccess
-            ? 'Nenhum registro hoje'
+            ? 'Você ainda não bateu ponto hoje'
             : ''}
         </Text>
       </View>
