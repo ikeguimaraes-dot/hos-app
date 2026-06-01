@@ -111,6 +111,14 @@ export default function RegistroScreen({ navigation }: any) {
   const [punchLoading, setPunchLoading] = useState(false);
   const [punchSuccess, setPunchSuccess] = useState(false);
   const punchScale = useRef(new Animated.Value(1)).current;
+  const punchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // W1: limpa timer do punchSuccess no unmount
+  useEffect(() => {
+    return () => {
+      if (punchTimerRef.current) clearTimeout(punchTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -220,7 +228,7 @@ export default function RegistroScreen({ navigation }: any) {
       }
       setLastPunch(data as PunchRecord);
       setPunchSuccess(true);
-      setTimeout(() => setPunchSuccess(false), 3000);
+      punchTimerRef.current = setTimeout(() => setPunchSuccess(false), 3000);
     } catch (e: any) {
       Alert.alert('Erro', e?.message ?? 'Erro inesperado ao registrar o ponto.');
     } finally {
@@ -293,13 +301,9 @@ export default function RegistroScreen({ navigation }: any) {
   async function fetchAll() {
     if (!employeeId) return;
 
-    try {
-      await fetchLastPunch(employeeId);
-    } catch (err) {
-      console.warn('[REGISTRO] fetchLastPunch falhou:', err);
-    }
-
-    const [timeRes, overtimeRes, absenceRes, warningsRes, tipsRes, transportRes] = await Promise.all([
+    // S2: fetchLastPunch paralelizado com as demais queries
+    const [, timeRes, overtimeRes, absenceRes, warningsRes, tipsRes, transportRes] = await Promise.allSettled([
+      fetchLastPunch(employeeId),
       supabase
         .from('time_records')
         .select('*')
@@ -332,19 +336,23 @@ export default function RegistroScreen({ navigation }: any) {
         .order('periodo', { ascending: false }),
     ]);
 
-    if (timeRes.error) console.error('[REGISTRO] time_records error:', timeRes.error);
-    if (overtimeRes.error) console.error('[REGISTRO] overtime error:', overtimeRes.error);
-    if (absenceRes.error) console.error('[REGISTRO] absences error:', absenceRes.error);
-    if (warningsRes.error) console.error('[REGISTRO] warnings error:', warningsRes.error);
-    if (tipsRes.error) console.error('[REGISTRO] tips error:', tipsRes.error);
-    if (transportRes.error) console.error('[REGISTRO] transport error:', transportRes.error);
+    function unwrap<T>(r: PromiseSettledResult<T>): T | null {
+      return r.status === 'fulfilled' ? r.value : null;
+    }
 
-    setTimeRecords(timeRes.data || []);
-    setOvertime(overtimeRes.data || []);
-    setAbsences(absenceRes.data || []);
-    setWarnings(warningsRes.data || []);
-    setTips(tipsRes.data || []);
-    setTransport(transportRes.data || []);
+    const time = unwrap(timeRes as PromiseSettledResult<any>);
+    const ot = unwrap(overtimeRes as PromiseSettledResult<any>);
+    const abs = unwrap(absenceRes as PromiseSettledResult<any>);
+    const warn = unwrap(warningsRes as PromiseSettledResult<any>);
+    const tip = unwrap(tipsRes as PromiseSettledResult<any>);
+    const trans = unwrap(transportRes as PromiseSettledResult<any>);
+
+    setTimeRecords(time?.data || []);
+    setOvertime(ot?.data || []);
+    setAbsences(abs?.data || []);
+    setWarnings(warn?.data || []);
+    setTips(tip?.data || []);
+    setTransport(trans?.data || []);
     setLoading(false);
   }
 
@@ -384,7 +392,7 @@ export default function RegistroScreen({ navigation }: any) {
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Saldo banco</Text>
             <Text style={[styles.cardValue, { color: saldoPositivo ? COLORS.SUCCESS_TEXT : COLORS.ERROR_TEXT }]}>
-              {saldoPositivo ? '+' : ''}{item.saldo_banco}
+              {item.saldo_banco}
             </Text>
           </View>
         )}
@@ -596,8 +604,8 @@ export default function RegistroScreen({ navigation }: any) {
       ListEmptyComponent={
         <View style={styles.emptyInner}>
           <Ionicons name="time-outline" size={64} color={COLORS.BORDER} />
-          <Text style={styles.emptyTitle}>Nenhum registro</Text>
-          <Text style={styles.emptySubtitle}>Seus registros de ponto, horas extras e ausências aparecerão aqui.</Text>
+          <Text style={styles.emptyTitle}>Bata seu primeiro ponto hoje</Text>
+          <Text style={styles.emptySubtitle}>Seus registros de ponto, horas extras e ausências aparecem aqui.</Text>
         </View>
       }
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

@@ -160,7 +160,7 @@ export default function FinanceiroScreen({ navigation }: any) {
           <Text style={styles.cardPeriod}>{formatPeriodo(item.periodo)}</Text>
           {item.pdf_path ? (
             <TouchableOpacity
-              onPress={() => handleVerPDF(item.pdf_path)}
+              onPress={() => handleVerPDF(item.pdf_path!).catch(e => Alert.alert('Erro', e?.message ?? 'Não foi possível abrir o PDF'))}
               style={styles.pdfButton}
             >
               <Text style={styles.pdfButtonText}>Ver PDF →</Text>
@@ -266,8 +266,8 @@ export default function FinanceiroScreen({ navigation }: any) {
     return (
       <View style={[styles.container, styles.center]}>
         <Ionicons name="wallet-outline" size={64} color={COLORS.BORDER} />
-        <Text style={styles.emptyTitle}>Nenhum registro financeiro</Text>
-        <Text style={styles.emptySubtitle}>Seus holerites e benefícios aparecerão aqui.</Text>
+        <Text style={styles.emptyTitle}>Nenhum lançamento este mês</Text>
+        <Text style={styles.emptySubtitle}>Seus holerites e benefícios aparecem aqui.</Text>
       </View>
     );
   }

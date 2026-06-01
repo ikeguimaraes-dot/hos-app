@@ -352,7 +352,6 @@ export default function HomeScreen({ navigation }: any) {
       {/* Info */}
       <Text style={styles.sectionTitle}>Informações</Text>
       <View style={styles.infoCard}>
-        <InfoRow label="Empresa" value={employee?.empresa || '—'} />
         <InfoRow label="Departamento" value={employee?.departamento || '—'} />
         <InfoRow label="Admissão" value={employee?.data_admissao || '—'} />
         <InfoRow label="Status" value={employee?.status || '—'} />

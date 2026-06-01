@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "HOS",
-    "slug": "hos-app",
+    "slug": "hos-kph",
     "version": "1.0.0",
     "orientation": "portrait",
     "platforms": [
@@ -14,20 +14,36 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6366F1"
+      "backgroundColor": "#1A1A1A"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.kph.hos"
     },
     "android": {
+      "package": "com.kph.hos",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#6366F1"
+        "backgroundColor": "#C4622D"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "plugins": [
       "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "O HOS App usa a câmera para gravar vídeos de entrevista e tirar selfie no registro de ponto."
+        }
+      ],
       [
         "expo-location",
         {

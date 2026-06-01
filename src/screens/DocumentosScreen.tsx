@@ -238,9 +238,9 @@ export default function DocumentosScreen({ navigation }: any) {
     return (
       <View style={styles.empty}>
         <Ionicons name="document-text-outline" size={64} color={COLORS.BORDER} />
-        <Text style={styles.emptyTitle}>Nenhum documento</Text>
+        <Text style={styles.emptyTitle}>Seus documentos aparecem aqui</Text>
         <Text style={styles.emptySubtitle}>
-          Toque em "+ Enviar Documento" para enviar seu primeiro arquivo.
+          Toque em "+ Enviar Documento" para adicionar seu primeiro arquivo.
         </Text>
       </View>
     );

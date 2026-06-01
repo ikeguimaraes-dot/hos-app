@@ -6,7 +6,6 @@ export interface Employee {
   cargo: string;
   departamento: string;
   data_admissao: string;
-  empresa: string;
   status: string;
 }
 

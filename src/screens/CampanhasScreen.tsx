@@ -79,11 +79,16 @@ export default function CampanhasScreen() {
       .from('campaigns')
       .select('*')
       .eq('active', true)
-      .or(`target.eq.all,and(target.eq.department,target_value.eq.${employee.departamento})`)
       .order('created_at', { ascending: false });
 
     if (error) console.error('[CAMPANHAS] error:', error);
-    setCampaigns(data || []);
+
+    // Filtra em JS para evitar injeção via .or() string interpolation
+    const filtered = (data || []).filter(c =>
+      c.target === 'all' ||
+      (c.target === 'department' && c.target_value === employee.departamento)
+    );
+    setCampaigns(filtered);
     setLoading(false);
   }
 
@@ -142,8 +147,8 @@ export default function CampanhasScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="megaphone-outline" size={64} color={COLORS.BORDER} />
-            <Text style={styles.emptyTitle}>Nenhuma campanha</Text>
-            <Text style={styles.emptySubtitle}>As campanhas internas aparecerão aqui.</Text>
+            <Text style={styles.emptyTitle}>O ranking atualiza semanalmente</Text>
+            <Text style={styles.emptySubtitle}>As campanhas internas da equipe aparecem aqui.</Text>
           </View>
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

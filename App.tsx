@@ -13,7 +13,6 @@ import HomeScreen from './src/screens/HomeScreen';
 import FinanceiroScreen from './src/screens/FinanceiroScreen';
 import DocumentosScreen from './src/screens/DocumentosScreen';
 import RegistroScreen from './src/screens/RegistroScreen';
-import FeriasScreen from './src/screens/FeriasScreen';
 import CampanhasScreen from './src/screens/CampanhasScreen';
 import CandidateLoginScreen from './src/screens/CandidateLoginScreen';
 import InterviewScreen from './src/screens/InterviewScreen';
@@ -97,16 +96,6 @@ function AppTabs() {
           title: 'Registro',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="time-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Ferias"
-        component={FeriasScreen}
-        options={{
-          title: 'Férias',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sunny-outline" size={size} color={color} />
           ),
         }}
       />
