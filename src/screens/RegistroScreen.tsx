@@ -648,11 +648,12 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontFamily: 'Fraunces_700Bold',
     color: COLORS.TEXT,
     marginTop: 16,
     marginBottom: 10,
+    letterSpacing: -0.3,
   },
   card: {
     backgroundColor: COLORS.CARD,
@@ -711,15 +712,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   badgeApproved: {
-    color: COLORS.SUCCESS,
+    color: COLORS.SUCCESS_TEXT,
     backgroundColor: '#DCFCE7',
   },
   badgePending: {
-    color: '#F59E0B',
+    color: '#92400E',
     backgroundColor: '#FEF3C7',
   },
   badgeDanger: {
-    color: COLORS.ERROR,
+    color: COLORS.ERROR_TEXT,
     backgroundColor: '#FEE2E2',
   },
   badgeNeutral: {
@@ -744,7 +745,7 @@ const styles = StyleSheet.create({
   },
   pontoTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'InstrumentSans_600SemiBold',
     color: COLORS.TEXT,
     marginBottom: 12,
   },
@@ -755,14 +756,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 24,
+    minHeight: 52,
   },
   pontoButtonText: {
     color: '#FFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'InstrumentSans_600SemiBold',
   },
   pontoSubtext: {
     fontSize: 13,
+    fontFamily: 'InstrumentSans_400Regular',
     color: COLORS.TEXT_SECONDARY,
     marginTop: 10,
     textAlign: 'center',
@@ -776,8 +779,8 @@ const styles = StyleSheet.create({
   },
   pontoSuccessText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.SUCCESS,
+    fontFamily: 'InstrumentSans_600SemiBold',
+    color: COLORS.SUCCESS_TEXT,
   },
   emptyInner: {
     alignItems: 'center',
