@@ -8,7 +8,6 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts, Fraunces_700Bold, Fraunces_700Bold_Italic } from '@expo-google-fonts/fraunces';
 import { InstrumentSans_400Regular, InstrumentSans_500Medium, InstrumentSans_600SemiBold } from '@expo-google-fonts/instrument-sans';
-import * as Sentry from '@sentry/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -17,20 +16,18 @@ import HomeScreen from './src/screens/HomeScreen';
 import FinanceiroScreen from './src/screens/FinanceiroScreen';
 import DocumentosScreen from './src/screens/DocumentosScreen';
 import RegistroScreen from './src/screens/RegistroScreen';
+import FeriasScreen from './src/screens/FeriasScreen';
 import CampanhasScreen from './src/screens/CampanhasScreen';
+import DesenvolvimentoScreen from './src/screens/DesenvolvimentoScreen';
+import ClimaScreen from './src/screens/ClimaScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import { RADIUS } from './src/lib/types';
 import CandidateLoginScreen from './src/screens/CandidateLoginScreen';
 import InterviewScreen from './src/screens/InterviewScreen';
 import InterviewCompleteScreen from './src/screens/InterviewCompleteScreen';
 import { getSession } from './src/lib/auth';
 import PdfViewerScreen from './src/screens/PdfViewerScreen';
 import { COLORS } from './src/lib/types';
-
-Sentry.init({
-  dsn: '', // Adicionar DSN após criar projeto em sentry.io
-  enabled: !__DEV__,
-  tracesSampleRate: 0.2,
-});
 
 const ONBOARDING_KEY = '@hos_onboarding_done';
 
@@ -64,15 +61,20 @@ function AppTabs() {
         headerStyle: { backgroundColor: COLORS.CARD },
         headerTintColor: COLORS.TEXT,
         headerTitleStyle: { fontFamily: 'InstrumentSans_600SemiBold', fontWeight: '600' },
-        tabBarActiveTintColor: COLORS.PRIMARY,
-        tabBarInactiveTintColor: COLORS.TEXT_SECONDARY,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.gray500,
         tabBarStyle: {
-          backgroundColor: COLORS.CARD,
-          borderTopColor: COLORS.BORDER,
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.border,
+          borderTopWidth: 1,
+          height: 84,
+          paddingBottom: 28,
+          paddingTop: 8,
         },
         tabBarLabelStyle: {
-          fontFamily: 'InstrumentSans_500Medium',
-          fontSize: 11,
+          fontSize: 10,
+          fontWeight: '500',
+          marginTop: 2,
         },
       }}
     >
@@ -117,6 +119,36 @@ function AppTabs() {
         }}
       />
       <Tab.Screen
+        name="Ferias"
+        component={FeriasScreen}
+        options={{
+          title: 'Férias',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="sunny-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Desenvolvimento"
+        component={DesenvolvimentoScreen}
+        options={{
+          title: 'Dev.',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="school-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Clima"
+        component={ClimaScreen}
+        options={{
+          title: 'Clima',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="happy-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Campanhas"
         component={CampanhasScreen}
         options={{
@@ -130,7 +162,7 @@ function AppTabs() {
   );
 }
 
-export default Sentry.wrap(function App() {
+export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [initialRoute, setInitialRoute] = useState<string>('Login');
 
@@ -205,4 +237,4 @@ export default Sentry.wrap(function App() {
       </NavigationContainer>
     </GestureHandlerRootView>
   );
-});
+}

@@ -8,10 +8,11 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { login } from '../lib/auth';
-import { COLORS } from '../lib/types';
+import { COLORS, RADIUS, SHADOW } from '../lib/types';
 
 export default function LoginScreen({ navigation }: any) {
   const [cpf, setCpf] = useState('');
@@ -69,22 +70,29 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={styles.outer}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.inner}>
-        <View style={styles.header}>
-          <Text style={styles.logo} accessibilityRole="header">HOS</Text>
-          <Text style={styles.subtitle}>Hospitalidade por método.</Text>
-        </View>
+      {/* Topo colorido */}
+      <View style={styles.topSection}>
+        <Text style={styles.logo} accessibilityRole="header">HOS</Text>
+        <Text style={styles.subtitle}>Acesse sua conta</Text>
+      </View>
 
-        <View style={styles.form}>
+      {/* Scroll com card flutuante */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
           {/* CPF */}
           <Text style={styles.label}>CPF</Text>
           <TextInput
             style={[styles.input, cpfFocused && styles.inputFocused, errors.cpf ? styles.inputError : null]}
             placeholder="000.000.000-00"
-            placeholderTextColor={COLORS.TEXT_SECONDARY}
+            placeholderTextColor={COLORS.textTertiary}
             keyboardType="numeric"
             value={cpf}
             onChangeText={(v) => {
@@ -99,7 +107,7 @@ export default function LoginScreen({ navigation }: any) {
             accessibilityLabel="CPF"
             accessibilityHint="Digite seu CPF no formato 000.000.000-00"
           />
-          {errors.cpf ? <Text style={styles.fieldError} accessibilityLiveRegion="assertive">{errors.cpf}</Text> : null}
+          {errors.cpf ? <Text style={styles.fieldError}>{errors.cpf}</Text> : null}
 
           {/* Senha */}
           <Text style={[styles.label, { marginTop: 16 }]}>Senha</Text>
@@ -108,7 +116,7 @@ export default function LoginScreen({ navigation }: any) {
               ref={passwordRef}
               style={styles.inputInner}
               placeholder="Digite sua senha"
-              placeholderTextColor={COLORS.TEXT_SECONDARY}
+              placeholderTextColor={COLORS.textTertiary}
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={(v) => {
@@ -120,7 +128,6 @@ export default function LoginScreen({ navigation }: any) {
               returnKeyType="done"
               onSubmitEditing={handleLogin}
               accessibilityLabel="Senha"
-              accessibilityHint="Digite sua senha de acesso"
             />
             <TouchableOpacity
               onPress={() => setShowPassword(v => !v)}
@@ -131,21 +138,21 @@ export default function LoginScreen({ navigation }: any) {
               <Ionicons
                 name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                 size={20}
-                color={COLORS.TEXT_SECONDARY}
-                accessible={false}
+                color={COLORS.textSecondary}
               />
             </TouchableOpacity>
           </View>
-          {errors.password ? <Text style={styles.fieldError} accessibilityLiveRegion="assertive">{errors.password}</Text> : null}
+          {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
 
           {/* Erro geral */}
           {errors.general ? (
             <View style={styles.generalError}>
-              <Ionicons name="alert-circle-outline" size={16} color={COLORS.ERROR_TEXT} accessible={false} />
-              <Text style={styles.generalErrorText} accessibilityLiveRegion="assertive">{errors.general}</Text>
+              <Ionicons name="alert-circle-outline" size={16} color={COLORS.error} />
+              <Text style={styles.generalErrorText}>{errors.general}</Text>
             </View>
           ) : null}
 
+          {/* Botão entrar */}
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
@@ -155,9 +162,7 @@ export default function LoginScreen({ navigation }: any) {
             accessibilityState={{ disabled: loading, busy: loading }}
           >
             {loading ? (
-              <View accessible accessibilityLabel="Entrando..." accessibilityLiveRegion="polite">
-                <ActivityIndicator color="#FFF" />
-              </View>
+              <ActivityIndicator color={COLORS.textInverse} />
             ) : (
               <Text style={styles.buttonText}>Entrar</Text>
             )}
@@ -187,71 +192,78 @@ export default function LoginScreen({ navigation }: any) {
             <Text style={styles.candidateButtonText}>Sou candidato</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  outer: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: COLORS.background,
   },
-  inner: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  header: {
+
+  // ── Topo com cor da marca ─────────────────────────────────────────────────
+  topSection: {
+    backgroundColor: COLORS.primary,
+    paddingTop: 72,
+    paddingBottom: 56,
     alignItems: 'center',
-    marginBottom: 40,
   },
   logo: {
-    fontSize: 52,
+    fontSize: 48,
     fontFamily: 'Fraunces_700Bold',
-    color: COLORS.PRIMARY,
+    color: COLORS.textInverse,
     letterSpacing: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.TEXT_SECONDARY,
-    marginTop: 6,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 8,
   },
-  form: {
-    backgroundColor: COLORS.CARD,
-    borderRadius: 16,
+
+  // ── Scroll + card flutuante ───────────────────────────────────────────────
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    marginTop: -32,     // overlap sobre o topSection
+    ...SHADOW.md,
   },
+
+  // ── Inputs ────────────────────────────────────────────────────────────────
   label: {
     fontSize: 13,
     fontFamily: 'InstrumentSans_600SemiBold',
-    color: COLORS.TEXT,
+    color: COLORS.textSecondary,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: COLORS.BACKGROUND,
-    borderRadius: 10,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
     fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.TEXT,
+    color: COLORS.textPrimary,
     borderWidth: 1.5,
-    borderColor: COLORS.BORDER,
+    borderColor: COLORS.border,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.BACKGROUND,
-    borderRadius: 10,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
     borderWidth: 1.5,
-    borderColor: COLORS.BORDER,
+    borderColor: COLORS.border,
     paddingHorizontal: 16,
   },
   inputInner: {
@@ -259,14 +271,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.TEXT,
+    color: COLORS.textPrimary,
   },
   inputFocused: {
-    borderColor: COLORS.PRIMARY,
+    borderColor: COLORS.primary,
     borderWidth: 2,
   },
   inputError: {
-    borderColor: COLORS.ERROR,
+    borderColor: COLORS.error,
     borderWidth: 1.5,
   },
   eyeButton: {
@@ -279,15 +291,15 @@ const styles = StyleSheet.create({
   fieldError: {
     fontSize: 12,
     fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.ERROR_TEXT,
+    color: COLORS.error,
     marginTop: 4,
     marginLeft: 4,
   },
   generalError: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
+    backgroundColor: COLORS.errorLight,
+    borderRadius: RADIUS.sm,
     padding: 10,
     marginTop: 12,
     gap: 6,
@@ -295,26 +307,28 @@ const styles = StyleSheet.create({
   generalErrorText: {
     fontSize: 13,
     fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.ERROR_TEXT,
+    color: COLORS.error,
     flex: 1,
   },
+
+  // ── Botão principal ───────────────────────────────────────────────────────
   button: {
-    backgroundColor: COLORS.PRIMARY,
-    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
     minHeight: 52,
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
+  buttonDisabled: { opacity: 0.7 },
   buttonText: {
-    color: '#FFF',
+    color: COLORS.textInverse,
     fontSize: 16,
     fontFamily: 'InstrumentSans_600SemiBold',
   },
+
+  // ── Links secundários ─────────────────────────────────────────────────────
   linkButton: {
     alignItems: 'center',
     marginTop: 16,
@@ -322,7 +336,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   linkText: {
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.textSecondary,
     fontSize: 14,
     fontFamily: 'InstrumentSans_500Medium',
   },
@@ -335,25 +349,25 @@ const styles = StyleSheet.create({
   separatorLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.BORDER,
+    backgroundColor: COLORS.border,
   },
   separatorText: {
     fontSize: 13,
     fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.textSecondary,
   },
   candidateButton: {
     alignItems: 'center',
     marginTop: 8,
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: RADIUS.md,
     borderWidth: 1.5,
-    borderColor: COLORS.BORDER,
+    borderColor: COLORS.border,
     minHeight: 52,
     justifyContent: 'center',
   },
   candidateButtonText: {
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.textSecondary,
     fontSize: 14,
     fontFamily: 'InstrumentSans_500Medium',
   },

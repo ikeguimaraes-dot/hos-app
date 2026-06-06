@@ -126,6 +126,7 @@ export default function RegistroScreen({ navigation }: any) {
     (async () => {
       const session = await getSession();
       if (!session) {
+        setLoading(false);
         Alert.alert('Sessão expirada', 'Faça login novamente.', [
           { text: 'OK', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Login' }] }) },
         ]);
@@ -227,7 +228,7 @@ export default function RegistroScreen({ navigation }: any) {
         .single();
 
       if (error || !data) {
-        Alert.alert('Sem conexão', 'Não foi possível registrar. Verifique sua internet e tente novamente.');
+        Alert.alert('Erro ao registrar ponto', error?.message ?? 'Tente novamente.');
         return;
       }
 
@@ -239,7 +240,11 @@ export default function RegistroScreen({ navigation }: any) {
       punchTimerRef.current = setTimeout(() => setPunchSuccess(false), 3000);
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Algo deu errado', e?.message ?? 'Verifique sua conexão e tente novamente.');
+      const isNetworkError = e instanceof TypeError && e.message?.includes('Network request failed');
+      Alert.alert(
+        isNetworkError ? 'Sem conexão' : 'Erro ao registrar ponto',
+        isNetworkError ? 'Verifique sua internet e tente novamente.' : (e?.message ?? 'Tente novamente.')
+      );
     } finally {
       setPunchLoading(false);
       setPunchStep('idle');

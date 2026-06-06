@@ -16,19 +16,13 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../lib/supabase';
 import { getSession, logout } from '../lib/auth';
-import { COLORS, Employee } from '../lib/types';
+import { COLORS, RADIUS, SHADOW, Employee } from '../lib/types';
 
 const MESES: Record<string, string> = {
   '01': 'Jan', '02': 'Fev', '03': 'Mar', '04': 'Abr',
   '05': 'Mai', '06': 'Jun', '07': 'Jul', '08': 'Ago',
   '09': 'Set', '10': 'Out', '11': 'Nov', '12': 'Dez',
 };
-
-function formatPeriodo(periodo: string): string {
-  if (!periodo) return '—';
-  const [ano, mes] = periodo.split('-');
-  return `${MESES[mes] || mes}/${ano}`;
-}
 
 function getSaudacao(): string {
   const h = new Date().getHours();
@@ -77,7 +71,6 @@ export default function HomeScreen({ navigation }: any) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [podium, setPodium] = useState<PodiumEmployee[]>([]);
-  const [allEmployeeScores, setAllEmployeeScores] = useState<string[]>([]);
 
   useEffect(() => {
     loadAll();
@@ -119,14 +112,11 @@ export default function HomeScreen({ navigation }: any) {
 
     if (scoreRes?.data?.photo_url) setPhotoUrl(scoreRes.data.photo_url);
 
-    // Rank position: count how many employees have score > this employee's score
     const allScores: PodiumEmployee[] = podiumRes?.data || [];
     const myScore = scoreRes?.data?.score ?? null;
     let rankPosition: number | null = null;
     if (myScore != null && allScores.length > 0) {
-      const scoreValues = allScores.map(e => e.score);
-      setAllEmployeeScores(scoreValues.map(String));
-      const higher = scoreValues.filter(s => s > myScore).length;
+      const higher = allScores.map(e => e.score).filter(s => s > myScore).length;
       rankPosition = higher + 1;
     }
 
@@ -137,8 +127,8 @@ export default function HomeScreen({ navigation }: any) {
       rankPosition,
       bancoHoras: bancoRes?.data || null,
       faltasMes: faltasRes?.count || 0,
-      lastPunch: (punchRes?.data && punchRes.error?.code !== 'PGRST116') ? punchRes.data : null,
-      ultimaCampanha: (campanhaRes?.data && campanhaRes.error?.code !== 'PGRST116') ? campanhaRes.data : null,
+      lastPunch: punchRes?.data ?? null,
+      ultimaCampanha: campanhaRes?.data ?? null,
     });
   }
 
@@ -163,7 +153,6 @@ export default function HomeScreen({ navigation }: any) {
   }
 
   async function handleChangePhoto() {
-    const options = ['Tirar foto', 'Escolher da galeria', 'Cancelar'];
     const pick = async (useCamera: boolean) => {
       const perm = useCamera
         ? await ImagePicker.requestCameraPermissionsAsync()
@@ -192,7 +181,7 @@ export default function HomeScreen({ navigation }: any) {
         const newUrl = urlData.publicUrl + '?t=' + Date.now();
         await supabase.from('employees').update({ photo_url: newUrl }).eq('id', empId);
         setPhotoUrl(newUrl);
-      } catch (e: any) {
+      } catch {
         Alert.alert('Erro', 'Não foi possível atualizar a foto. Tente novamente.');
       } finally {
         setUploadingPhoto(false);
@@ -200,7 +189,7 @@ export default function HomeScreen({ navigation }: any) {
     };
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options, cancelButtonIndex: 2 },
+        { options: ['Tirar foto', 'Escolher da galeria', 'Cancelar'], cancelButtonIndex: 2 },
         (i) => { if (i === 0) pick(true); if (i === 1) pick(false); }
       );
     } else {
@@ -221,39 +210,35 @@ export default function HomeScreen({ navigation }: any) {
 
   function PodiumCard({ emp, position }: { emp: PodiumEmployee; position: 1 | 2 | 3 }) {
     const isFirst = position === 1;
-    const colors = { 1: COLORS.OURO, 2: COLORS.PEDRA, 3: '#A0522D' };
+    const podiumColors = { 1: '#B8975A', 2: COLORS.gray400, 3: '#A0522D' } as const;
     const heights = { 1: 80, 2: 60, 3: 48 };
     const medals = { 1: '1°', 2: '2°', 3: '3°' };
     const ini = emp.full_name?.trim().split(' ').filter(Boolean);
     const initials = ini?.length > 1
       ? ini[0][0] + ini[ini.length - 1][0]
       : (ini?.[0]?.[0] || '?');
+    const c = podiumColors[position];
     return (
-      <View
-        style={[styles.podiumCard, isFirst && styles.podiumCardFirst]}
-        accessible
-        accessibilityLabel={`${position}º lugar: ${emp.full_name}, ${emp.score} pontos`}
-      >
-        <Text style={[styles.podiumMedal, { color: colors[position] }]}>{medals[position]}</Text>
+      <View style={[styles.podiumCard, isFirst && styles.podiumCardFirst]}>
+        <Text style={[styles.podiumMedal, { color: c }]}>{medals[position]}</Text>
         {emp.photo_url ? (
           <Image
             source={{ uri: emp.photo_url }}
             style={[styles.podiumAvatar, {
-              borderColor: colors[position],
+              borderColor: c,
               width: isFirst ? 60 : 48,
               height: isFirst ? 60 : 48,
               borderRadius: isFirst ? 30 : 24,
             }]}
-            accessible={false}
           />
         ) : (
           <View style={[styles.podiumAvatarPlaceholder, {
-            backgroundColor: colors[position] + '33',
-            borderColor: colors[position],
+            backgroundColor: c + '33',
+            borderColor: c,
             width: isFirst ? 60 : 48,
             height: isFirst ? 60 : 48,
             borderRadius: isFirst ? 30 : 24,
-          }]} accessible={false}>
+          }]}>
             <Text style={[styles.podiumInitials, { fontSize: isFirst ? 18 : 14 }]}>
               {initials.toUpperCase()}
             </Text>
@@ -262,11 +247,11 @@ export default function HomeScreen({ navigation }: any) {
         <Text style={[styles.podiumName, isFirst && { fontSize: 13, fontFamily: 'InstrumentSans_600SemiBold' }]} numberOfLines={1}>
           {emp.full_name?.split(' ')[0]}
         </Text>
-        <View style={[styles.podiumScoreBadge, { borderColor: colors[position] + '66' }]}>
-          <Text style={[styles.podiumScore, { color: colors[position] }]}>⭐ {emp.score}</Text>
+        <View style={[styles.podiumScoreBadge, { borderColor: c + '66' }]}>
+          <Text style={[styles.podiumScore, { color: c }]}>⭐ {emp.score}</Text>
         </View>
-        <View style={[styles.podiumBase, { height: heights[position], backgroundColor: colors[position] + '18', borderTopColor: colors[position] }]}>
-          <Text style={[styles.podiumPosition, { color: colors[position] }]}>{position}</Text>
+        <View style={[styles.podiumBase, { height: heights[position], backgroundColor: c + '18', borderTopColor: c }]}>
+          <Text style={[styles.podiumPosition, { color: c }]}>{position}</Text>
         </View>
       </View>
     );
@@ -285,162 +270,159 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
-      {/* Header — saudação + avatar + logout */}
-      <View style={styles.headerRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.saudacao}>{getSaudacao()},</Text>
-          <Text style={styles.nomeHeader} numberOfLines={1}>{primeiroNome}</Text>
-          {employee?.cargo ? (
-            <Text style={styles.cargoHeader} numberOfLines={1}>{employee.cargo}</Text>
-          ) : null}
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={handleChangePhoto}
-            disabled={uploadingPhoto}
-            style={styles.avatarContainer}
-            accessibilityLabel="Alterar foto de perfil"
-            accessibilityRole="button"
-            accessibilityHint="Abre opções para tirar foto ou escolher da galeria"
-          >
-            {photoUrl ? (
-              <Image source={{ uri: photoUrl }} style={styles.avatar} accessible={false} />
-            ) : (
-              <View style={styles.avatarPlaceholder} accessible={false}>
-                <Text style={styles.avatarInitials}>{getInitials(employee?.nome)}</Text>
+      {/* ── Header colorido ─────────────────────────────────────────────── */}
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.saudacao}>{getSaudacao()},</Text>
+            <Text style={styles.nomeHeader} numberOfLines={1}>{primeiroNome}</Text>
+            {employee?.cargo ? (
+              <Text style={styles.cargoHeader} numberOfLines={1}>{employee.cargo}</Text>
+            ) : null}
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={handleChangePhoto}
+              disabled={uploadingPhoto}
+              style={styles.avatarContainer}
+              accessibilityLabel="Alterar foto de perfil"
+              accessibilityRole="button"
+            >
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarInitials}>{getInitials(employee?.nome)}</Text>
+                </View>
+              )}
+              <View style={styles.avatarEdit}>
+                <Ionicons name="camera" size={9} color={COLORS.textInverse} />
               </View>
-            )}
-            <View style={styles.avatarEdit} accessible={false}>
-              <Ionicons name="camera" size={9} color="#FFF" accessible={false} />
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={styles.logoutButton}
-            accessibilityLabel="Sair da conta"
-            accessibilityRole="button"
-          >
-            <Ionicons name="log-out-outline" size={20} color={COLORS.TEXT_SECONDARY} accessible={false} />
-          </TouchableOpacity>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.logoutButton}
+              accessibilityLabel="Sair da conta"
+              accessibilityRole="button"
+            >
+              <Ionicons name="log-out-outline" size={20} color="rgba(255,255,255,0.85)" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
-      {/* Card de ponto */}
-      <View style={[styles.pontoCard, pontoBatido ? styles.pontoCardActive : styles.pontoCardIdle]}>
-        <View style={styles.pontoCardLeft}>
-          <Ionicons
-            name={pontoBatido ? 'checkmark-circle' : 'time-outline'}
-            size={28}
-            color={pontoBatido ? COLORS.SUCCESS_TEXT : COLORS.PRIMARY}
-            accessible={false}
-          />
-          <View style={{ marginLeft: 12 }}>
-            <Text style={styles.pontoCardLabel}>
-              {pontoBatido ? 'Entrada registrada' : 'Ponto de hoje'}
+      {/* ── Conteúdo principal ───────────────────────────────────────────── */}
+      <View style={styles.content}>
+        {/* Card de ponto */}
+        <View style={[styles.pontoCard, pontoBatido ? styles.pontoCardActive : styles.pontoCardIdle]}>
+          <View style={styles.pontoCardLeft}>
+            <Ionicons
+              name={pontoBatido ? 'checkmark-circle' : 'time-outline'}
+              size={28}
+              color={pontoBatido ? COLORS.success : COLORS.primary}
+            />
+            <View style={{ marginLeft: 12 }}>
+              <Text style={styles.pontoCardLabel}>
+                {pontoBatido ? 'Entrada registrada' : 'Ponto de hoje'}
+              </Text>
+              <Text style={[styles.pontoCardValor, { color: pontoBatido ? COLORS.success : COLORS.textSecondary }]}>
+                {pontoBatido ? pontoHora! : 'Você ainda não bateu ponto'}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.pontoCTA}
+            onPress={() => navigation.navigate('Registro')}
+            accessibilityLabel={pontoBatido ? 'Ver registro de ponto' : 'Bater ponto agora'}
+            accessibilityRole="button"
+          >
+            <Text style={styles.pontoCTAText}>{pontoBatido ? 'Ver' : 'Bater ponto'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Métricas */}
+        <View style={styles.metricsRow}>
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => navigation.navigate('Registro')}
+            accessibilityLabel={`Banco de horas: ${dashboard.bancoHoras?.saldo_banco || 'sem dados'}`}
+            accessibilityRole="button"
+          >
+            <Text style={styles.metricIcon}>⏱</Text>
+            <Text style={styles.metricLabel}>Banco</Text>
+            <Text style={[styles.metricValor, saldoPositivo ? { color: COLORS.success } : dashboard.bancoHoras?.saldo_banco ? { color: COLORS.error } : {}]}>
+              {dashboard.bancoHoras?.saldo_banco || '—'}
             </Text>
-            <Text style={[styles.pontoCardValor, pontoBatido ? { color: COLORS.SUCCESS_TEXT } : { color: COLORS.TEXT_SECONDARY }]}>
-              {pontoBatido ? `${pontoHora}` : 'Você ainda não bateu ponto'}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => navigation.navigate('Registro')}
+            accessibilityLabel={`Faltas no mês: ${dashboard.faltasMes}`}
+            accessibilityRole="button"
+          >
+            <Text style={styles.metricIcon}>📅</Text>
+            <Text style={styles.metricLabel}>Faltas</Text>
+            <Text style={[styles.metricValor, dashboard.faltasMes > 0 ? { color: COLORS.error } : { color: COLORS.success }]}>
+              {dashboard.faltasMes}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.metricCard}>
+            <Text style={styles.metricIcon}>🏅</Text>
+            <Text style={styles.metricLabel}>Ranking</Text>
+            <Text style={[styles.metricValor, { color: '#B8975A' }]}>
+              {dashboard.rankPosition != null ? `${dashboard.rankPosition}º` : '—'}
             </Text>
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.pontoCTA}
-          onPress={() => navigation.navigate('Registro')}
-          accessibilityLabel={pontoBatido ? 'Ver registro de ponto' : 'Bater ponto agora'}
-          accessibilityRole="button"
-        >
-          <Text style={styles.pontoCTAText}>{pontoBatido ? 'Ver' : 'Bater ponto'}</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* 3 metric cards */}
-      <View style={styles.metricsRow}>
-        <TouchableOpacity
-          style={styles.metricCard}
-          onPress={() => navigation.navigate('Registro')}
-          accessibilityLabel={`Banco de horas: ${dashboard.bancoHoras?.saldo_banco || 'sem dados'}`}
-          accessibilityRole="button"
-        >
-          <Text style={styles.metricIcon}>⏱</Text>
-          <Text style={styles.metricLabel}>Banco</Text>
-          <Text style={[styles.metricValor, saldoPositivo ? { color: COLORS.SUCCESS_TEXT } : dashboard.bancoHoras?.saldo_banco ? { color: COLORS.ERROR_TEXT } : {}]}>
-            {dashboard.bancoHoras?.saldo_banco || '—'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.metricCard}
-          onPress={() => navigation.navigate('Registro')}
-          accessibilityLabel={`Faltas no mês: ${dashboard.faltasMes}`}
-          accessibilityRole="button"
-        >
-          <Text style={styles.metricIcon}>📅</Text>
-          <Text style={styles.metricLabel}>Faltas</Text>
-          <Text style={[styles.metricValor, dashboard.faltasMes > 0 ? { color: COLORS.ERROR_TEXT } : { color: COLORS.SUCCESS_TEXT }]}>
-            {dashboard.faltasMes}
-          </Text>
-        </TouchableOpacity>
-
-        <View
-          style={styles.metricCard}
-          accessible
-          accessibilityLabel={`Posição no ranking: ${dashboard.rankPosition != null ? `${dashboard.rankPosition}º` : 'sem dados'}`}
-        >
-          <Text style={styles.metricIcon}>🏅</Text>
-          <Text style={styles.metricLabel}>Ranking</Text>
-          <Text style={[styles.metricValor, { color: COLORS.OURO }]}>
-            {dashboard.rankPosition != null ? `${dashboard.rankPosition}º` : '—'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Pódio */}
-      {podium.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>Ranking da equipe</Text>
-          <View style={styles.podiumContainer}>
-            {podium[1] && <PodiumCard emp={podium[1]} position={2} />}
-            {podium[0] && <PodiumCard emp={podium[0]} position={1} />}
-            {podium[2] && <PodiumCard emp={podium[2]} position={3} />}
-          </View>
-        </>
-      )}
-
-      {/* Comunicado recente */}
-      {dashboard.ultimaCampanha && (
-        <>
-          <Text style={styles.sectionTitle}>Comunicados</Text>
-          <TouchableOpacity
-            style={styles.campanhaCard}
-            onPress={() => navigation.navigate('Campanhas')}
-            accessibilityLabel={`Campanha: ${dashboard.ultimaCampanha.title}. Toque para ver todas.`}
-            accessibilityRole="button"
-          >
-            <View style={styles.campanhaLeft}>
-              <View style={styles.campanhaDot} accessible={false} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.campanhaCategoria}>
-                  {CATEGORY_LABELS[dashboard.ultimaCampanha.category] || dashboard.ultimaCampanha.category}
-                </Text>
-                <Text style={styles.campanhaTitulo} numberOfLines={2}>
-                  {dashboard.ultimaCampanha.title}
-                </Text>
-              </View>
+        {/* Pódio */}
+        {podium.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Ranking da equipe</Text>
+            <View style={styles.podiumContainer}>
+              {podium[1] && <PodiumCard emp={podium[1]} position={2} />}
+              {podium[0] && <PodiumCard emp={podium[0]} position={1} />}
+              {podium[2] && <PodiumCard emp={podium[2]} position={3} />}
             </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.TEXT_SECONDARY} accessible={false} />
-          </TouchableOpacity>
-        </>
-      )}
+          </>
+        )}
 
-      {/* Info */}
-      <Text style={styles.sectionTitle}>Seu perfil</Text>
-      <View style={styles.infoCard}>
-        <InfoRow label="Departamento" value={employee?.departamento || '—'} />
-        <InfoRow label="Admissão" value={employee?.data_admissao || '—'} />
-        <InfoRow label="Status" value={employee?.status || '—'} last />
+        {/* Comunicado recente */}
+        {dashboard.ultimaCampanha && (
+          <>
+            <Text style={styles.sectionTitle}>Comunicados</Text>
+            <TouchableOpacity
+              style={styles.campanhaCard}
+              onPress={() => navigation.navigate('Campanhas')}
+              accessibilityRole="button"
+            >
+              <View style={styles.campanhaLeft}>
+                <View style={styles.campanhaDot} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.campanhaCategoria}>
+                    {CATEGORY_LABELS[dashboard.ultimaCampanha.category] || dashboard.ultimaCampanha.category}
+                  </Text>
+                  <Text style={styles.campanhaTitulo} numberOfLines={2}>
+                    {dashboard.ultimaCampanha.title}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* Perfil */}
+        <Text style={styles.sectionTitle}>Seu perfil</Text>
+        <View style={styles.infoCard}>
+          <InfoRow label="Departamento" value={employee?.departamento || '—'} />
+          <InfoRow label="Admissão" value={employee?.data_admissao ? new Date(employee.data_admissao).toLocaleDateString('pt-BR') : '—'} />
+          <InfoRow label="Status" value={employee?.status ? employee.status.charAt(0).toUpperCase() + employee.status.slice(1) : '—'} last />
+        </View>
       </View>
     </ScrollView>
   );
@@ -458,36 +440,37 @@ function InfoRow({ label, value, last }: { label: string; value: string; last?: 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 48,
+    backgroundColor: COLORS.background,
   },
 
-  // Header
+  // ── Header ────────────────────────────────────────────────────────────────
+  header: {
+    backgroundColor: COLORS.primary,
+    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 20,
   },
   saudacao: {
     fontSize: 14,
     fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.TEXT_SECONDARY,
+    color: 'rgba(255,255,255,0.8)',
   },
   nomeHeader: {
-    fontSize: 26,
+    fontSize: 24,
     fontFamily: 'Fraunces_700Bold',
-    color: COLORS.TEXT,
+    color: COLORS.textInverse,
     marginTop: 2,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   cargoHeader: {
     fontSize: 13,
     fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.TEXT_SECONDARY,
+    color: 'rgba(255,255,255,0.7)',
     marginTop: 2,
   },
   headerActions: {
@@ -496,70 +479,74 @@ const styles = StyleSheet.create({
     gap: 10,
     marginLeft: 12,
   },
-  avatarContainer: {
-    position: 'relative',
-  },
+  avatarContainer: { position: 'relative' },
   avatar: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: RADIUS.full,
     borderWidth: 2,
-    borderColor: COLORS.PRIMARY,
+    borderColor: 'rgba(255,255,255,0.6)',
   },
   avatarPlaceholder: {
     width: 52,
     height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.PRIMARY + '22',
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: COLORS.PRIMARY,
+    borderColor: 'rgba(255,255,255,0.6)',
   },
   avatarInitials: {
     fontSize: 18,
     fontFamily: 'InstrumentSans_600SemiBold',
-    color: COLORS.PRIMARY,
+    color: COLORS.primary,
   },
   avatarEdit: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: COLORS.CARVAO,
+    backgroundColor: COLORS.black,
     borderRadius: 7,
     padding: 2,
     borderWidth: 1,
-    borderColor: COLORS.BACKGROUND,
+    borderColor: COLORS.primary,
   },
   logoutButton: {
-    backgroundColor: COLORS.CARD,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: RADIUS.md,
     padding: 10,
     minWidth: 44,
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
   },
 
-  // Ponto card
+  // ── Conteúdo ──────────────────────────────────────────────────────────────
+  content: {
+    padding: 20,
+    paddingTop: 20,
+    paddingBottom: 48,
+  },
+
+  // ── Card de ponto ─────────────────────────────────────────────────────────
   pontoCard: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     padding: 16,
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
+    ...SHADOW.sm,
   },
   pontoCardActive: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
+    backgroundColor: COLORS.successLight,
+    borderColor: '#A7D9C3',
   },
   pontoCardIdle: {
-    backgroundColor: COLORS.CARD,
-    borderColor: COLORS.BORDER,
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
   },
   pontoCardLeft: {
     flexDirection: 'row',
@@ -569,7 +556,7 @@ const styles = StyleSheet.create({
   pontoCardLabel: {
     fontSize: 12,
     fontFamily: 'InstrumentSans_500Medium',
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.textSecondary,
   },
   pontoCardValor: {
     fontSize: 15,
@@ -577,10 +564,10 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   pontoCTA: {
-    backgroundColor: COLORS.PRIMARY,
-    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
     paddingVertical: 9,
-    paddingHorizontal: 14,
+    paddingHorizontal: 20,
     minHeight: 38,
     alignItems: 'center',
     justifyContent: 'center',
@@ -589,10 +576,10 @@ const styles = StyleSheet.create({
   pontoCTAText: {
     fontSize: 13,
     fontFamily: 'InstrumentSans_600SemiBold',
-    color: '#FFF',
+    color: COLORS.textInverse,
   },
 
-  // Metrics
+  // ── Métricas ──────────────────────────────────────────────────────────────
   metricsRow: {
     flexDirection: 'row',
     gap: 10,
@@ -600,17 +587,11 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    backgroundColor: COLORS.CARD,
-    borderRadius: 14,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
     padding: 14,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
+    ...SHADOW.sm,
   },
   metricIcon: {
     fontSize: 20,
@@ -619,17 +600,17 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 11,
     fontFamily: 'InstrumentSans_500Medium',
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.textSecondary,
     marginBottom: 4,
   },
   metricValor: {
     fontSize: 16,
     fontFamily: 'InstrumentSans_600SemiBold',
-    color: COLORS.TEXT,
+    color: COLORS.textPrimary,
     textAlign: 'center',
   },
 
-  // Podium
+  // ── Pódio ─────────────────────────────────────────────────────────────────
   podiumContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -637,81 +618,53 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     gap: 8,
   },
-  podiumCard: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  podiumCardFirst: {
-    marginBottom: 12,
-  },
-  podiumMedal: {
-    fontSize: 14,
-    fontFamily: 'InstrumentSans_700Bold' as any,
-    marginBottom: 6,
-    fontWeight: '800',
-  },
-  podiumAvatar: {
-    borderWidth: 2,
-    marginBottom: 6,
-  },
+  podiumCard: { alignItems: 'center', flex: 1 },
+  podiumCardFirst: { marginBottom: 12 },
+  podiumMedal: { fontSize: 14, fontWeight: '800', marginBottom: 6 },
+  podiumAvatar: { borderWidth: 2, marginBottom: 6 },
   podiumAvatarPlaceholder: {
     borderWidth: 2,
     marginBottom: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  podiumInitials: {
-    fontFamily: 'InstrumentSans_600SemiBold',
-    color: '#FFF',
-  },
+  podiumInitials: { fontFamily: 'InstrumentSans_600SemiBold', color: COLORS.textInverse },
   podiumName: {
     fontSize: 11,
     fontFamily: 'InstrumentSans_500Medium',
-    color: COLORS.TEXT,
+    color: COLORS.textPrimary,
     marginBottom: 4,
     textAlign: 'center',
   },
   podiumScoreBadge: {
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     paddingHorizontal: 7,
     paddingVertical: 2,
     marginBottom: 6,
   },
-  podiumScore: {
-    fontSize: 10,
-    fontFamily: 'InstrumentSans_600SemiBold',
-  },
+  podiumScore: { fontSize: 10, fontFamily: 'InstrumentSans_600SemiBold' },
   podiumBase: {
     width: '100%',
     borderTopWidth: 2,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    borderTopLeftRadius: RADIUS.sm,
+    borderTopRightRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingTop: 6,
   },
-  podiumPosition: {
-    fontSize: 20,
-    fontFamily: 'Fraunces_700Bold',
-  },
+  podiumPosition: { fontSize: 20, fontFamily: 'Fraunces_700Bold' },
 
-  // Campanha
+  // ── Campanha ──────────────────────────────────────────────────────────────
   campanhaCard: {
-    backgroundColor: COLORS.CARD,
-    borderRadius: 14,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 28,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    ...SHADOW.sm,
   },
   campanhaLeft: {
     flexDirection: 'row',
@@ -722,13 +675,13 @@ const styles = StyleSheet.create({
   campanhaDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.PRIMARY,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primary,
   },
   campanhaCategoria: {
     fontSize: 11,
     fontFamily: 'InstrumentSans_500Medium',
-    color: COLORS.PRIMARY,
+    color: COLORS.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -736,47 +689,41 @@ const styles = StyleSheet.create({
   campanhaTitulo: {
     fontSize: 14,
     fontFamily: 'InstrumentSans_600SemiBold',
-    color: COLORS.TEXT,
+    color: COLORS.textPrimary,
   },
 
-  // Section titles
+  // ── Títulos de seção ──────────────────────────────────────────────────────
   sectionTitle: {
     fontSize: 17,
     fontFamily: 'Fraunces_700Bold',
-    color: COLORS.TEXT,
+    color: COLORS.textPrimary,
     marginBottom: 12,
     letterSpacing: -0.3,
   },
 
-  // Info
+  // ── Card de perfil ────────────────────────────────────────────────────────
   infoCard: {
-    backgroundColor: COLORS.CARD,
-    borderRadius: 14,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
     paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    ...SHADOW.sm,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.BORDER,
+    borderBottomColor: COLORS.border,
     alignItems: 'center',
   },
   infoLabel: {
     fontSize: 14,
     fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.textSecondary,
   },
   infoValue: {
     fontSize: 14,
     fontFamily: 'InstrumentSans_600SemiBold',
-    color: COLORS.TEXT,
+    color: COLORS.textPrimary,
   },
 });

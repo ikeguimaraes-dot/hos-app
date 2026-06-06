@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,7 +53,6 @@ const slides = [
 export default function OnboardingScreen({ navigation }: any) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-  const scrollX = useRef(new Animated.Value(0)).current;
 
   async function finish() {
     await AsyncStorage.setItem(ONBOARDING_KEY, 'done');
@@ -69,13 +67,10 @@ export default function OnboardingScreen({ navigation }: any) {
     }
   }
 
-  const bg = scrollX.interpolate({
-    inputRange: slides.map((_, i) => i * width),
-    outputRange: slides.map(s => s.bg),
-  });
+  const currentSlide = slides[currentIndex];
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: bg }]}>
+    <View style={[styles.container, { backgroundColor: currentSlide.bg }]}>
       <FlatList
         ref={flatListRef}
         data={slides}
@@ -83,10 +78,6 @@ export default function OnboardingScreen({ navigation }: any) {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false }
-        )}
         onMomentumScrollEnd={e => {
           setCurrentIndex(Math.round(e.nativeEvent.contentOffset.x / width));
         }}
@@ -107,24 +98,12 @@ export default function OnboardingScreen({ navigation }: any) {
 
       {/* Dots */}
       <View style={styles.dots}>
-        {slides.map((_, i) => {
-          const opacity = scrollX.interpolate({
-            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
-            outputRange: [0.3, 1, 0.3],
-            extrapolate: 'clamp',
-          });
-          const scale = scrollX.interpolate({
-            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
-            outputRange: [0.8, 1.2, 0.8],
-            extrapolate: 'clamp',
-          });
-          return (
-            <Animated.View
-              key={i}
-              style={[styles.dot, { opacity, transform: [{ scale }] }]}
-            />
-          );
-        })}
+        {slides.map((_, i) => (
+          <View
+            key={i}
+            style={[styles.dot, i === currentIndex && styles.dotActive]}
+          />
+        ))}
       </View>
 
       {/* Next / Skip */}
@@ -138,7 +117,7 @@ export default function OnboardingScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -202,6 +181,11 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: COLORS.CREME,
+    opacity: 0.3,
+  },
+  dotActive: {
+    opacity: 1,
+    transform: [{ scale: 1.2 }],
   },
   footer: {
     position: 'absolute',

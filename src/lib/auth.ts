@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import bcrypt from 'bcryptjs';
 import { supabase } from './supabase';
 import { AuthSession, Employee } from './types';
 
 const SESSION_KEY = '@hos_session';
+const EXPECTED_SUPABASE_REF = process.env.EXPO_PUBLIC_SUPABASE_URL?.match(/\/\/([^.]+)\./)?.[1];
 
 export async function login(cpf: string, password: string): Promise<Employee> {
   // Step 1 — Buscar registro em employee_auth
@@ -16,9 +18,9 @@ export async function login(cpf: string, password: string): Promise<Employee> {
     throw new Error('CPF não cadastrado. Use o Primeiro Acesso.');
   }
 
-  // Step 2 — Verificar senha
-  // TODO: migrar para Supabase Auth nativo com bcrypt — senha em plaintext é dívida técnica P0 de segurança
-  if (authRecord.password_hash !== password) {
+  // Step 2 — Verificar senha com bcrypt
+  const senhaCorreta = await bcrypt.compare(password, authRecord.password_hash);
+  if (!senhaCorreta) {
     throw new Error('Senha incorreta.');
   }
 
@@ -49,6 +51,7 @@ export async function login(cpf: string, password: string): Promise<Employee> {
     employee,
     token: 'local',
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    supabaseRef: EXPECTED_SUPABASE_REF,
   };
 
   await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -60,6 +63,13 @@ export async function getSession(): Promise<AuthSession | null> {
   if (!raw) return null;
 
   const session: AuthSession = JSON.parse(raw);
+
+  // Invalida sessão se banco mudou (migração) ou se expirou
+  if (session.supabaseRef && EXPECTED_SUPABASE_REF && session.supabaseRef !== EXPECTED_SUPABASE_REF) {
+    await logout();
+    return null;
+  }
+
   if (new Date(session.expiresAt) < new Date()) {
     await logout();
     return null;
@@ -96,9 +106,10 @@ export async function primeiroAcesso(cpf: string, password: string): Promise<voi
   }
 
   // Step 3 — Criar registro em employee_auth com employee_id FK
+  const hashedPassword = await bcrypt.hash(password, 10);
   const { error: insertError } = await supabase
     .from('employee_auth')
-    .insert({ cpf, password_hash: password, employee_id: employee.id });
+    .insert({ cpf, password_hash: hashedPassword, employee_id: employee.id });
 
   if (insertError) {
     throw new Error('Erro ao criar acesso: ' + insertError.message);

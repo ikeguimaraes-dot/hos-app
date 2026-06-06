@@ -96,7 +96,7 @@ export default function DocumentosScreen({ navigation }: any) {
       });
       const byteArray = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 
-      const { data: storageData, error: storageError } = await supabase.storage
+      const { error: storageError } = await supabase.storage
         .from('documents')
         .upload(storagePath, byteArray, { contentType: mimeType });
 
@@ -106,17 +106,18 @@ export default function DocumentosScreen({ navigation }: any) {
 
       const docType = getDocumentType(mimeType, fileName);
 
-      const { data: emp } = await supabase
+      const { data: empData } = await supabase
         .from('employees')
-        .select('id, unit_id')
+        .select('unit_id')
         .eq('id', employeeId)
         .single();
+      const unitId = empData?.unit_id;
 
       const { error: insertError } = await supabase
         .from('documents')
         .insert({
           employee_id: employeeId,
-          unit_id: emp?.unit_id ?? null,
+          unit_id: unitId,
           name: fileName,
           type: docType,
           storage_path: storagePath,
