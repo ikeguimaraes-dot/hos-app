@@ -90,16 +90,19 @@ export default function ClimaScreen({ navigation }: any) {
   }, [unitId, employeeId]);
 
   async function fetchSurveys(uid: string, empId: string) {
-    const { data } = await supabase.rpc('get_unit_surveys', {
-      p_unit_id: uid,
-      p_employee_id: empId,
-    });
-    const surveyList: Survey[] = (data || []).map((s: any) => ({
-      ...s,
-      respondido: s.already_answered,
-    }));
-    setSurveys(surveyList);
-    setLoading(false);
+    try {
+      const { data } = await supabase.rpc('get_unit_surveys', {
+        p_unit_id: uid,
+        p_employee_id: empId,
+      });
+      const surveyList: Survey[] = (data || []).map((s: any) => ({
+        ...s,
+        respondido: s.already_answered,
+      }));
+      setSurveys(surveyList);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const onRefresh = useCallback(async () => {

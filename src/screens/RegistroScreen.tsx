@@ -98,6 +98,12 @@ interface PunchRecord {
   timestamp_punch: string;
 }
 
+interface TodayPunch {
+  id: string;
+  tipo: string;
+  timestamp_punch: string;
+}
+
 export default function RegistroScreen({ navigation }: any) {
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [timeRecords, setTimeRecords] = useState<TimeRecord[]>([]);
@@ -110,6 +116,7 @@ export default function RegistroScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
 
   const [lastPunch, setLastPunch] = useState<PunchRecord | null>(null);
+  const [todayPunches, setTodayPunches] = useState<TodayPunch[]>([]);
   const [punchLoading, setPunchLoading] = useState(false);
   const [punchSuccess, setPunchSuccess] = useState(false);
   const [punchStep, setPunchStep] = useState<'idle' | 'gps' | 'camera' | 'upload' | 'done'>('idle');
@@ -144,6 +151,11 @@ export default function RegistroScreen({ navigation }: any) {
   async function fetchLastPunch(empId: string) {
     const { data } = await supabase.rpc('get_my_last_punch', { p_employee_id: empId });
     setLastPunch(data ?? null);
+  }
+
+  async function fetchTodayPunches(empId: string) {
+    const { data } = await supabase.rpc('get_my_punches_today', { p_employee_id: empId });
+    setTodayPunches(data || []);
   }
 
   async function registrarPonto() {
@@ -228,6 +240,7 @@ export default function RegistroScreen({ navigation }: any) {
       setLastPunch(data as PunchRecord);
       setPunchSuccess(true);
       punchTimerRef.current = setTimeout(() => setPunchSuccess(false), 3000);
+      fetchTodayPunches(employeeId);
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const isNetworkError = e instanceof TypeError && e.message?.includes('Network request failed');
@@ -319,6 +332,7 @@ export default function RegistroScreen({ navigation }: any) {
     const [registroRes] = await Promise.allSettled([
       supabase.rpc('get_my_registro', { p_employee_id: employeeId }),
       fetchLastPunch(employeeId),
+      fetchTodayPunches(employeeId),
     ]);
 
     if (registroRes.status === 'fulfilled' && registroRes.value.data) {
@@ -559,6 +573,55 @@ export default function RegistroScreen({ navigation }: any) {
     return <Text style={styles.sectionTitle}>{section.title}</Text>;
   }
 
+  function calcTotalHoras(punches: TodayPunch[]): string {
+    let total = 0;
+    for (let i = 0; i + 1 < punches.length; i += 2) {
+      const entrada = new Date(punches[i].timestamp_punch).getTime();
+      const saida   = new Date(punches[i + 1].timestamp_punch).getTime();
+      if (punches[i].tipo === 'entrada' && punches[i + 1].tipo === 'saida') {
+        total += saida - entrada;
+      }
+    }
+    if (total === 0) return '';
+    const horas   = Math.floor(total / 3600000);
+    const minutos = Math.floor((total % 3600000) / 60000);
+    return `${horas}h${minutos.toString().padStart(2, '0')}`;
+  }
+
+  function renderTimelineCard() {
+    const fmt = (ts: string) =>
+      new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+    const total = calcTotalHoras(todayPunches);
+
+    return (
+      <View style={[styles.card, { marginBottom: 16 }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <Text style={styles.pontoTitle}>Pontos de hoje</Text>
+          {total ? (
+            <View style={styles.totalBadge}>
+              <Text style={styles.totalBadgeText}>{total} trabalhadas</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {todayPunches.length === 0 ? (
+          <Text style={styles.timelineEmpty}>Nenhum ponto registrado hoje</Text>
+        ) : (
+          <View style={styles.timelineRow}>
+            {todayPunches.map((p, idx) => (
+              <View key={p.id} style={styles.timelineItem}>
+                {idx > 0 && <View style={styles.timelineDash} />}
+                <View style={[styles.timelineDot, p.tipo === 'entrada' ? styles.dotEntrada : styles.dotSaida]} />
+                <Text style={styles.timelineLabel}>{p.tipo === 'entrada' ? 'Entrada' : 'Saída'}</Text>
+                <Text style={styles.timelineHora}>{fmt(p.timestamp_punch)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -577,7 +640,12 @@ export default function RegistroScreen({ navigation }: any) {
       keyExtractor={(item) => item.id}
       renderItem={renderItem}
       renderSectionHeader={renderSectionHeader}
-      ListHeaderComponent={() => renderPontoCard()}
+      ListHeaderComponent={() => (
+        <>
+          {renderPontoCard()}
+          {renderTimelineCard()}
+        </>
+      )}
       ListEmptyComponent={
         <View style={styles.emptyInner}>
           <Ionicons name="time-outline" size={64} color={COLORS.BORDER} />
@@ -744,4 +812,17 @@ const styles = StyleSheet.create({
     padding: 32,
     marginTop: 8,
   },
+
+  // Timeline do dia
+  timelineRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignItems: 'center' },
+  timelineItem:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  timelineDash:  { width: 16, height: 1, backgroundColor: COLORS.BORDER, marginHorizontal: 2 },
+  timelineDot:   { width: 8, height: 8, borderRadius: 4 },
+  dotEntrada:    { backgroundColor: COLORS.SUCCESS_TEXT },
+  dotSaida:      { backgroundColor: COLORS.ERROR_TEXT },
+  timelineLabel: { fontSize: 12, color: COLORS.TEXT_SECONDARY, fontFamily: 'InstrumentSans_400Regular' },
+  timelineHora:  { fontSize: 13, fontFamily: 'InstrumentSans_600SemiBold', color: COLORS.TEXT, marginLeft: 2 },
+  timelineEmpty: { fontSize: 14, color: COLORS.TEXT_SECONDARY, fontStyle: 'italic' },
+  totalBadge:    { backgroundColor: COLORS.SUCCESS_TEXT + '22', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  totalBadgeText:{ fontSize: 12, fontFamily: 'InstrumentSans_600SemiBold', color: COLORS.SUCCESS_TEXT },
 });
