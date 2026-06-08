@@ -75,16 +75,12 @@ export default function CampanhasScreen() {
   async function fetchCampaigns() {
     if (!employee) return;
 
-    const { data, error } = await supabase
-      .from('campaigns')
-      .select('*')
-      .eq('active', true)
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.rpc('get_active_campaigns');
 
     if (error) console.error('[CAMPANHAS] error:', error);
 
     // Filtra em JS para evitar injeção via .or() string interpolation
-    const filtered = (data || []).filter(c =>
+    const filtered = (data || []).filter((c: Campaign) =>
       c.target === 'all' ||
       (c.target === 'department' && c.target_value === employee.departamento)
     );

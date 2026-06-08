@@ -32,7 +32,8 @@ interface PdiMeta {
 interface Pdi {
   id: string;
   titulo: string;
-  periodo?: string;
+  data_inicio?: string;
+  data_fim?: string;
   status?: string;
   pdi_metas?: PdiMeta[];
 }
@@ -40,7 +41,7 @@ interface Pdi {
 interface Feedback {
   id: string;
   tipo?: string;
-  conteudo?: string;
+  mensagem?: string;
   created_at?: string;
   autor?: string;
 }
@@ -139,18 +140,13 @@ export default function DesenvolvimentoScreen({ navigation }: any) {
   }, [employeeId]);
 
   async function fetchAll(id: string) {
-    const [pdiRes, feedRes, trainRes, planRes] = await Promise.allSettled([
-      supabase.from('pdis').select('*, pdi_metas(*)').eq('employee_id', id).order('created_at', { ascending: false }),
-      supabase.from('feedbacks').select('*').eq('employee_id', id).order('created_at', { ascending: false }),
-      supabase.from('training_participants').select('*, trainings(*)').eq('employee_id', id).order('created_at', { ascending: false }),
-      supabase.from('action_plans').select('*, action_plan_tasks(*)').eq('employee_id', id).order('created_at', { ascending: false }),
-    ]);
-
-    if (pdiRes.status === 'fulfilled') setPdis(pdiRes.value.data || []);
-    if (feedRes.status === 'fulfilled') setFeedbacks(feedRes.value.data || []);
-    if (trainRes.status === 'fulfilled') setTrainings(trainRes.value.data || []);
-    if (planRes.status === 'fulfilled') setActionPlans(planRes.value.data || []);
-
+    const { data } = await supabase.rpc('get_my_development', { p_employee_id: id });
+    if (data) {
+      setPdis(data.pdis || []);
+      setFeedbacks(data.feedbacks || []);
+      setTrainings(data.trainings || []);
+      setActionPlans(data.action_plans || []);
+    }
     setLoading(false);
   }
 
@@ -175,7 +171,11 @@ export default function DesenvolvimentoScreen({ navigation }: any) {
             <Text style={[styles.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
           </View>
         </View>
-        {item.periodo ? <Text style={styles.cardMeta}>{item.periodo}</Text> : null}
+        {(item.data_inicio || item.data_fim) ? (
+          <Text style={styles.cardMeta}>
+            {[item.data_inicio, item.data_fim].filter(Boolean).map(formatDate).join(' — ')}
+          </Text>
+        ) : null}
         {metas.length > 0 ? (
           <View style={{ marginTop: 12 }}>
             <Text style={styles.subLabel}>METAS</Text>
@@ -204,7 +204,7 @@ export default function DesenvolvimentoScreen({ navigation }: any) {
           </Text>
           <Text style={styles.cardMeta}>{formatDate(item.created_at)}</Text>
         </View>
-        {item.conteudo ? <Text style={styles.feedbackText}>{item.conteudo}</Text> : null}
+        {item.mensagem ? <Text style={styles.feedbackText}>{item.mensagem}</Text> : null}
         {item.autor ? <Text style={styles.autorText}>— {item.autor}</Text> : null}
       </View>
     );

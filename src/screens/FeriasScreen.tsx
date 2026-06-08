@@ -62,12 +62,7 @@ export default function FeriasScreen({ navigation }: any) {
   }, [employeeId]);
 
   async function fetchFerias(id: string) {
-    const { data } = await supabase
-      .from('vacations')
-      .select('*')
-      .eq('employee_id', id)
-      .order('periodo_aquisitivo_inicio', { ascending: false });
-
+    const { data } = await supabase.rpc('get_my_vacations', { p_employee_id: id });
     setVacations(data || []);
     setLoading(false);
   }

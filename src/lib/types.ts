@@ -1,12 +1,13 @@
 export interface Employee {
   id: string;
   cpf: string;
-  nome: string;
+  nome: string;         // nome + sobrenome concatenados
   email: string;
-  cargo: string;
+  cargo: string;        // funcao no banco
   departamento: string;
   data_admissao: string;
-  status: string;
+  status: string;       // 'ativo' | 'inativo' derivado de employees.ativo
+  unit_id?: string;
 }
 
 export interface AuthSession {

@@ -35,6 +35,7 @@ export default function DocumentosScreen({ navigation }: any) {
   const [uploading, setUploading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [unitId, setUnitId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -46,6 +47,7 @@ export default function DocumentosScreen({ navigation }: any) {
         return;
       }
       setEmployeeId(session.employee.id);
+      if (session.employee.unit_id) setUnitId(session.employee.unit_id);
     })();
   }, []);
 
@@ -55,13 +57,7 @@ export default function DocumentosScreen({ navigation }: any) {
 
   async function fetchDocuments() {
     if (!employeeId) return;
-
-    const { data, error } = await supabase
-      .from('documents')
-      .select('id, name, type, storage_path, uploaded_at')
-      .eq('employee_id', employeeId)
-      .order('uploaded_at', { ascending: false });
-
+    const { data } = await supabase.rpc('get_my_documents', { p_employee_id: employeeId });
     setDocuments(data || []);
     setLoading(false);
   }
@@ -106,22 +102,13 @@ export default function DocumentosScreen({ navigation }: any) {
 
       const docType = getDocumentType(mimeType, fileName);
 
-      const { data: empData } = await supabase
-        .from('employees')
-        .select('unit_id')
-        .eq('id', employeeId)
-        .single();
-      const unitId = empData?.unit_id;
-
-      const { error: insertError } = await supabase
-        .from('documents')
-        .insert({
-          employee_id: employeeId,
-          unit_id: unitId,
-          name: fileName,
-          type: docType,
-          storage_path: storagePath,
-        });
+      const { error: insertError } = await supabase.rpc('insert_document', {
+        p_employee_id:  employeeId,
+        p_unit_id:      unitId,
+        p_name:         fileName,
+        p_type:         docType,
+        p_storage_path: storagePath,
+      });
 
       if (insertError) {
         throw new Error(insertError.message);

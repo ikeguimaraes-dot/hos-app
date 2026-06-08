@@ -42,7 +42,8 @@ function formatTime(iso: string): string {
 
 interface PodiumEmployee {
   id: string;
-  full_name: string;
+  nome: string;
+  sobrenome?: string;
   photo_url?: string;
   score: number;
 }
@@ -98,7 +99,7 @@ export default function HomeScreen({ navigation }: any) {
         supabase.from('employees').select('score, photo_url').eq('id', empId).single(),
         supabase.from('time_records').select('saldo_banco, banco_horas_acumulado').eq('employee_id', empId).order('periodo', { ascending: false }).limit(1).single(),
         supabase.from('absences').select('id', { count: 'exact', head: true }).eq('employee_id', empId).gte('date', firstOfMonth),
-        supabase.from('employees').select('id, full_name, photo_url, score').not('score', 'is', null).order('score', { ascending: false }).limit(10),
+        supabase.from('employees').select('id, nome, sobrenome, photo_url, score').not('score', 'is', null).order('score', { ascending: false }).limit(10),
         supabase.from('time_clock_punches').select('tipo, timestamp_punch').eq('employee_id', empId).gte('timestamp_punch', `${hoje}T00:00:00`).order('timestamp_punch', { ascending: false }).limit(1).single(),
         supabase.from('campaigns').select('title, category').eq('active', true).order('created_at', { ascending: false }).limit(1).single(),
       ]);
@@ -213,10 +214,7 @@ export default function HomeScreen({ navigation }: any) {
     const podiumColors = { 1: '#B8975A', 2: COLORS.gray400, 3: '#A0522D' } as const;
     const heights = { 1: 80, 2: 60, 3: 48 };
     const medals = { 1: '1°', 2: '2°', 3: '3°' };
-    const ini = emp.full_name?.trim().split(' ').filter(Boolean);
-    const initials = ini?.length > 1
-      ? ini[0][0] + ini[ini.length - 1][0]
-      : (ini?.[0]?.[0] || '?');
+    const initials = (emp.nome?.[0] || '') + (emp.sobrenome?.[0] || '');
     const c = podiumColors[position];
     return (
       <View style={[styles.podiumCard, isFirst && styles.podiumCardFirst]}>
@@ -240,12 +238,12 @@ export default function HomeScreen({ navigation }: any) {
             borderRadius: isFirst ? 30 : 24,
           }]}>
             <Text style={[styles.podiumInitials, { fontSize: isFirst ? 18 : 14 }]}>
-              {initials.toUpperCase()}
+              {(initials || '?').toUpperCase()}
             </Text>
           </View>
         )}
         <Text style={[styles.podiumName, isFirst && { fontSize: 13, fontFamily: 'InstrumentSans_600SemiBold' }]} numberOfLines={1}>
-          {emp.full_name?.split(' ')[0]}
+          {emp.nome}
         </Text>
         <View style={[styles.podiumScoreBadge, { borderColor: c + '66' }]}>
           <Text style={[styles.podiumScore, { color: c }]}>⭐ {emp.score}</Text>

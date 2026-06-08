@@ -7,12 +7,8 @@ const SESSION_KEY = '@hos_session';
 const EXPECTED_SUPABASE_REF = process.env.EXPO_PUBLIC_SUPABASE_URL?.match(/\/\/([^.]+)\./)?.[1];
 
 export async function login(cpf: string, password: string): Promise<Employee> {
-  // Step 1 — Buscar registro em employee_auth
-  const { data: authRecord, error: authError } = await supabase
-    .from('employee_auth')
-    .select('id, cpf, password_hash, employee_id')
-    .eq('cpf', cpf)
-    .single();
+  // Step 1 — Buscar registro em employee_auth via RPC (contorna RLS com ANON key)
+  const { data: authRecord, error: authError } = await supabase.rpc('get_auth_by_cpf', { p_cpf: cpf });
 
   if (authError || !authRecord) {
     throw new Error('CPF não cadastrado. Use o Primeiro Acesso.');
@@ -24,12 +20,10 @@ export async function login(cpf: string, password: string): Promise<Employee> {
     throw new Error('Senha incorreta.');
   }
 
-  // Step 3 — Buscar dados do funcionário em employees pelo employee_id
-  const { data: emp, error: empError } = await supabase
-    .from('employees')
-    .select('id, full_name, cpf, department, role, email, hire_date, status, photo_url')
-    .eq('id', authRecord.employee_id)
-    .single();
+  // Step 3 — Buscar dados do funcionário via RPC
+  const { data: emp, error: empError } = await supabase.rpc('get_employee_profile', {
+    p_employee_id: authRecord.employee_id,
+  });
 
   if (empError || !emp) {
     throw new Error('Funcionário não encontrado na base. Fale com o RH.');
@@ -39,12 +33,13 @@ export async function login(cpf: string, password: string): Promise<Employee> {
   const employee: Employee = {
     id: emp.id,
     cpf: emp.cpf || cpf,
-    nome: emp.full_name,
+    nome: emp.nome + (emp.sobrenome ? ' ' + emp.sobrenome : ''),
     email: emp.email || '',
-    cargo: emp.role || '',
-    departamento: emp.department || '',
-    data_admissao: emp.hire_date || '',
-    status: emp.status || '',
+    cargo: emp.funcao || '',
+    departamento: emp.departamento || '',
+    data_admissao: emp.data_admissao || '',
+    status: emp.ativo ? 'ativo' : 'inativo',
+    unit_id: emp.unit_id || '',
   };
 
   const session: AuthSession = {
@@ -83,33 +78,24 @@ export async function logout(): Promise<void> {
 }
 
 export async function primeiroAcesso(cpf: string, password: string): Promise<void> {
-  // Step 1 — Verificar se o CPF existe na tabela employees
-  const { data: employee, error: empError } = await supabase
-    .from('employees')
-    .select('id, full_name')
-    .eq('cpf', cpf)
-    .single();
+  // Steps 1+2 — Verificar CPF e se já tem auth em uma chamada RPC
+  const { data: check, error: checkError } = await supabase.rpc('check_primo_acesso', { p_cpf: cpf });
 
-  if (empError || !employee) {
+  if (checkError || !check) {
     throw new Error('CPF não encontrado no sistema. Fale com o RH.');
   }
 
-  // Step 2 — Verificar se já tem registro em employee_auth
-  const { data: existingAuth } = await supabase
-    .from('employee_auth')
-    .select('id')
-    .eq('cpf', cpf)
-    .single();
-
-  if (existingAuth) {
+  if (check.has_auth) {
     throw new Error('Este CPF já possui acesso. Use a tela de login.');
   }
 
-  // Step 3 — Criar registro em employee_auth com employee_id FK
+  // Step 3 — Criar registro em employee_auth via RPC
   const hashedPassword = await bcrypt.hash(password, 10);
-  const { error: insertError } = await supabase
-    .from('employee_auth')
-    .insert({ cpf, password_hash: hashedPassword, employee_id: employee.id });
+  const { error: insertError } = await supabase.rpc('create_employee_auth', {
+    p_employee_id:   check.employee_id,
+    p_cpf:           cpf,
+    p_password_hash: hashedPassword,
+  });
 
   if (insertError) {
     throw new Error('Erro ao criar acesso: ' + insertError.message);

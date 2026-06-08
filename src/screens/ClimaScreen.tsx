@@ -41,7 +41,9 @@ interface Survey {
   prazo?: string;
   status?: string;
   unit_id?: string;
+  already_answered?: boolean;
   respondido?: boolean;
+  questions?: SurveyQuestion[];
 }
 
 interface Respostas {
@@ -64,7 +66,7 @@ export default function ClimaScreen({ navigation }: any) {
   // Modal de resposta
   const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
-  const [loadingQuestions, setLoadingQuestions] = useState(false);
+
   const [respostas, setRespostas] = useState<Respostas>({});
   const [anonimo, setAnonimo] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -79,14 +81,7 @@ export default function ClimaScreen({ navigation }: any) {
         return;
       }
       setEmployeeId(session.employee.id);
-
-      const { data: emp } = await supabase
-        .from('employees')
-        .select('unit_id')
-        .eq('id', session.employee.id)
-        .single();
-
-      if (emp?.unit_id) setUnitId(emp.unit_id);
+      if (session.employee.unit_id) setUnitId(session.employee.unit_id);
     })();
   }, []);
 
@@ -95,20 +90,15 @@ export default function ClimaScreen({ navigation }: any) {
   }, [unitId, employeeId]);
 
   async function fetchSurveys(uid: string, empId: string) {
-    const [surveysRes, responsesRes] = await Promise.allSettled([
-      supabase.from('climate_surveys').select('*').eq('unit_id', uid).eq('status', 'ativo').order('created_at', { ascending: false }),
-      supabase.from('climate_survey_responses').select('survey_id').eq('employee_id', empId),
-    ]);
-
-    let surveyList: Survey[] = [];
-    const respondedIds = new Set<string>();
-
-    if (surveysRes.status === 'fulfilled') surveyList = surveysRes.value.data || [];
-    if (responsesRes.status === 'fulfilled') {
-      (responsesRes.value.data || []).forEach((r: any) => respondedIds.add(r.survey_id));
-    }
-
-    setSurveys(surveyList.map((s) => ({ ...s, respondido: respondedIds.has(s.id) })));
+    const { data } = await supabase.rpc('get_unit_surveys', {
+      p_unit_id: uid,
+      p_employee_id: empId,
+    });
+    const surveyList: Survey[] = (data || []).map((s: any) => ({
+      ...s,
+      respondido: s.already_answered,
+    }));
+    setSurveys(surveyList);
     setLoading(false);
   }
 
@@ -121,20 +111,11 @@ export default function ClimaScreen({ navigation }: any) {
 
   // ─── Modal ────────────────────────────────────────────────────────────────────
 
-  async function handleOpenSurvey(survey: Survey) {
+  function handleOpenSurvey(survey: Survey) {
     setSelectedSurvey(survey);
     setRespostas({});
     setAnonimo(false);
-    setLoadingQuestions(true);
-
-    const { data } = await supabase
-      .from('climate_survey_questions')
-      .select('*')
-      .eq('survey_id', survey.id)
-      .order('ordem', { ascending: true });
-
-    setQuestions(data || []);
-    setLoadingQuestions(false);
+    setQuestions(survey.questions || []);
   }
 
   function setResposta(qId: string, field: 'valor' | 'texto' | 'opcao', value: any) {
@@ -169,7 +150,7 @@ export default function ClimaScreen({ navigation }: any) {
       resposta_opcao: respostas[q.id]?.opcao ?? null,
     }));
 
-    const { error } = await supabase.from('climate_survey_responses').insert(rows);
+    const { error } = await supabase.rpc('submit_survey_responses', { p_responses: rows });
     setSubmitting(false);
 
     if (error) {
@@ -319,12 +300,7 @@ export default function ClimaScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
 
-          {loadingQuestions ? (
-            <View style={[styles.center, { flex: 1 }]}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-            </View>
-          ) : (
-            <ScrollView contentContainerStyle={styles.modalContent}>
+          <ScrollView contentContainerStyle={styles.modalContent}>
               {questions.map(renderQuestion)}
 
               {/* Anonimato */}
@@ -353,7 +329,6 @@ export default function ClimaScreen({ navigation }: any) {
                 )}
               </TouchableOpacity>
             </ScrollView>
-          )}
         </View>
       </Modal>
     </View>

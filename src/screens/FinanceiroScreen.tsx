@@ -140,10 +140,10 @@ export default function FinanceiroScreen({ navigation }: any) {
 
   async function fetchAll(id: string) {
     const [payslipRes, gorjetaRes, adiantRes, horasRes] = await Promise.allSettled([
-      supabase.from('payslips').select('*').eq('employee_id', id).order('competencia', { ascending: false }),
-      supabase.from('gorjeta_distribuicao').select('*').eq('employee_id', id).order('ano', { ascending: false }).order('mes', { ascending: false }),
-      supabase.from('contractor_payments').select('*').eq('contractor_id', id).order('competencia', { ascending: false }),
-      supabase.from('hour_bank').select('*').eq('employee_id', id).order('competencia', { ascending: false }),
+      supabase.rpc('get_my_payslips', { p_employee_id: id }),
+      supabase.rpc('get_my_gorjetas', { p_employee_id: id }),
+      supabase.rpc('get_my_payments', { p_employee_id: id }),
+      supabase.rpc('get_my_hour_bank', { p_employee_id: id }),
     ]);
 
     if (payslipRes.status === 'fulfilled') setPayslips(payslipRes.value.data || []);

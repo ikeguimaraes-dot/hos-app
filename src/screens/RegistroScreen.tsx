@@ -141,16 +141,7 @@ export default function RegistroScreen({ navigation }: any) {
   }, [employeeId]);
 
   async function fetchLastPunch(empId: string) {
-    const todayISO = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
-    const midnightSP = new Date(todayISO + 'T00:00:00-03:00').toISOString();
-    const { data } = await supabase
-      .from('time_clock_punches')
-      .select('tipo, timestamp_punch')
-      .eq('employee_id', empId)
-      .gte('timestamp_punch', midnightSP)
-      .order('timestamp_punch', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data } = await supabase.rpc('get_my_last_punch', { p_employee_id: empId });
     setLastPunch(data ?? null);
   }
 
@@ -214,18 +205,14 @@ export default function RegistroScreen({ navigation }: any) {
 
       // 4. Registra o ponto
       const now = new Date().toISOString();
-      const { data, error } = await supabase
-        .from('time_clock_punches')
-        .insert({
-          employee_id: employeeId,
-          tipo: proximoTipo,
-          timestamp_punch: now,
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          device_info: storagePath,
-        })
-        .select('tipo, timestamp_punch')
-        .single();
+      const { data, error } = await supabase.rpc('insert_punch', {
+        p_employee_id: employeeId,
+        p_tipo:        proximoTipo,
+        p_timestamp:   now,
+        p_latitude:    location.coords.latitude,
+        p_longitude:   location.coords.longitude,
+        p_device_info: storagePath,
+      });
 
       if (error || !data) {
         Alert.alert('Erro ao registrar ponto', error?.message ?? 'Tente novamente.');
@@ -326,58 +313,20 @@ export default function RegistroScreen({ navigation }: any) {
   async function fetchAll() {
     if (!employeeId) return;
 
-    // S2: fetchLastPunch paralelizado com as demais queries
-    const [, timeRes, overtimeRes, absenceRes, warningsRes, tipsRes, transportRes] = await Promise.allSettled([
+    const [registroRes] = await Promise.allSettled([
+      supabase.rpc('get_my_registro', { p_employee_id: employeeId }),
       fetchLastPunch(employeeId),
-      supabase
-        .from('time_records')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .order('periodo', { ascending: false }),
-      supabase
-        .from('overtime_records')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .order('date', { ascending: false }),
-      supabase
-        .from('absences')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .order('date', { ascending: false }),
-      supabase
-        .from('warnings')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .order('date', { ascending: false }),
-      supabase
-        .from('tips_records')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .order('periodo', { ascending: false }),
-      supabase
-        .from('transport_vouchers')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .order('periodo', { ascending: false }),
     ]);
 
-    function unwrap<T>(r: PromiseSettledResult<T>): T | null {
-      return r.status === 'fulfilled' ? r.value : null;
+    if (registroRes.status === 'fulfilled' && registroRes.value.data) {
+      const d = registroRes.value.data;
+      setTimeRecords(d.time_records || []);
+      setOvertime(d.overtime || []);
+      setAbsences(d.absences || []);
+      setWarnings(d.warnings || []);
+      setTips(d.tips || []);
+      setTransport(d.transport || []);
     }
-
-    const time = unwrap(timeRes as PromiseSettledResult<any>);
-    const ot = unwrap(overtimeRes as PromiseSettledResult<any>);
-    const abs = unwrap(absenceRes as PromiseSettledResult<any>);
-    const warn = unwrap(warningsRes as PromiseSettledResult<any>);
-    const tip = unwrap(tipsRes as PromiseSettledResult<any>);
-    const trans = unwrap(transportRes as PromiseSettledResult<any>);
-
-    setTimeRecords(time?.data || []);
-    setOvertime(ot?.data || []);
-    setAbsences(abs?.data || []);
-    setWarnings(warn?.data || []);
-    setTips(tip?.data || []);
-    setTransport(trans?.data || []);
     setLoading(false);
   }
 
