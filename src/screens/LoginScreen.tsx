@@ -235,6 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.xl,
     padding: 24,
+    paddingTop: 28,
     marginTop: -32,     // overlap sobre o topSection
     ...SHADOW.md,
   },
@@ -256,6 +257,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     borderWidth: 1.5,
     borderColor: COLORS.border,
+    ...(Platform.OS === 'web' && { outlineWidth: 0 } as object),
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -272,6 +274,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'InstrumentSans_400Regular',
     color: COLORS.textPrimary,
+    ...(Platform.OS === 'web' && { outlineWidth: 0 } as object),
   },
   inputFocused: {
     borderColor: COLORS.primary,

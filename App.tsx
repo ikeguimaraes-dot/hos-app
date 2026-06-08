@@ -20,6 +20,7 @@ import FeriasScreen from './src/screens/FeriasScreen';
 import CampanhasScreen from './src/screens/CampanhasScreen';
 import DesenvolvimentoScreen from './src/screens/DesenvolvimentoScreen';
 import ClimaScreen from './src/screens/ClimaScreen';
+import TheoScreen from './src/screens/TheoScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import { RADIUS } from './src/lib/types';
 import CandidateLoginScreen from './src/screens/CandidateLoginScreen';
@@ -145,6 +146,17 @@ function AppTabs() {
           title: 'Clima',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="happy-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Theo"
+        component={TheoScreen}
+        options={{
+          title: 'Theo',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
           ),
         }}
       />

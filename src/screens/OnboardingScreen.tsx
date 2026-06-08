@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,8 +61,11 @@ export default function OnboardingScreen({ navigation }: any) {
   }
 
   function next() {
-    if (currentIndex < slides.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < slides.length) {
+      // scrollToOffset is more reliable on web than scrollToIndex
+      flatListRef.current?.scrollToOffset({ offset: nextIndex * width, animated: true });
+      setCurrentIndex(nextIndex);
     } else {
       finish();
     }
@@ -82,7 +86,12 @@ export default function OnboardingScreen({ navigation }: any) {
           setCurrentIndex(Math.round(e.nativeEvent.contentOffset.x / width));
         }}
         renderItem={({ item }) => (
-          <View style={styles.slide}>
+          <TouchableOpacity
+            style={styles.slide}
+            onPress={Platform.OS === 'web' ? next : undefined}
+            activeOpacity={Platform.OS === 'web' ? 0.95 : 1}
+            accessible={false}
+          >
             <Ionicons name={item.icon} size={96} color={item.textColor} style={styles.icon} />
             <Text style={[styles.title, { color: item.textColor }]}>{item.title}</Text>
             <Text style={[styles.subtitle, { color: item.textColor }]}>{item.subtitle}</Text>
@@ -92,7 +101,7 @@ export default function OnboardingScreen({ navigation }: any) {
                 <Text style={styles.ctaText}>Entrar no HOS</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </TouchableOpacity>
         )}
       />
 
