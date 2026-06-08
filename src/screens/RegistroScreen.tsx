@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
 import { getSession } from '../lib/auth';
@@ -188,16 +189,18 @@ export default function RegistroScreen({ navigation }: any) {
       });
       if (photo.canceled || !photo.assets?.length) return;
 
-      // 3. Upload da selfie — fetch→blob evita OOM em dispositivos com pouca RAM
+      // 3. Upload da selfie — base64 via FileSystem funciona em content:// e file:// (Android + iOS)
       setPunchStep('upload');
       const asset = photo.assets[0]!;
       const ts = Date.now();
       const storagePath = `${employeeId}/${ts}_${proximoTipo}.jpg`;
-      const fileResponse = await fetch(asset.uri);
-      const blob = await fileResponse.blob();
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const byteArray = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
       const { error: storageError } = await supabase.storage
         .from('punch-photos')
-        .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
+        .upload(storagePath, byteArray, { contentType: 'image/jpeg', upsert: false });
       if (storageError) {
         Alert.alert('Erro no envio', 'Não foi possível enviar a selfie. Tente novamente.');
         return;
