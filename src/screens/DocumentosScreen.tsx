@@ -135,8 +135,9 @@ export default function DocumentosScreen({ navigation }: any) {
 
       await fetchDocuments();
       Alert.alert('Enviado!', `${selectedCategoria.label} enviado com sucesso.`);
-    } catch {
-      Alert.alert('Erro no envio', 'Não foi possível enviar o arquivo. Tente novamente.');
+    } catch (err: any) {
+      console.error('[DOCS] upload error:', err?.message, err);
+      Alert.alert('Erro no envio', err?.message || 'Não foi possível enviar o arquivo. Tente novamente.');
     } finally {
       setUploading(false);
       setSelectedCategoria(null);
