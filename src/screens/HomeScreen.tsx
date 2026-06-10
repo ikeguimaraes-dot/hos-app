@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ActionSheetIOS,
   Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -73,9 +74,11 @@ export default function HomeScreen({ navigation }: any) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [podium, setPodium] = useState<PodiumEmployee[]>([]);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+    }, [])
+  );
 
   async function loadAll() {
     const session = await getSession();
