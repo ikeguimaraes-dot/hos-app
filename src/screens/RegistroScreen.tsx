@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -148,6 +149,15 @@ export default function RegistroScreen({ navigation }: any) {
     if (employeeId) fetchAll();
   }, [employeeId]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (employeeId) {
+        fetchLastPunch(employeeId);
+        fetchTodayPunches(employeeId);
+      }
+    }, [employeeId])
+  );
+
   async function fetchLastPunch(empId: string) {
     const { data } = await supabase.rpc('get_my_last_punch', { p_employee_id: empId });
     setLastPunch(data ?? null);
@@ -241,8 +251,7 @@ export default function RegistroScreen({ navigation }: any) {
       setPunchSuccess(true);
       punchTimerRef.current = setTimeout(() => setPunchSuccess(false), 3000);
       fetchTodayPunches(employeeId);
-      // Volta para Início para que useFocusEffect refaça a query de status
-      navigation.navigate('Home');
+      setTimeout(() => navigation.navigate('Home'), 1500);
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const isNetworkError = e instanceof TypeError && e.message?.includes('Network request failed');

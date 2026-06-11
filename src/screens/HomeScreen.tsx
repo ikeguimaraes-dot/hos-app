@@ -34,11 +34,147 @@ function getSaudacao(): string {
 
 function formatTime(iso: string): string {
   try {
-    const d = new Date(iso);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return new Date(iso).toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Sao_Paulo',
+    });
   } catch {
     return '—';
   }
+}
+
+// ─── Ponto hero card ──────────────────────────────────────────────────────────
+
+type PontoState = 'idle' | 'working' | 'lunch' | 'done';
+
+function getElapsed(since: string): string {
+  const ms = Math.max(0, Date.now() - new Date(since).getTime());
+  const totalMins = Math.floor(ms / 60000);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if (h === 0) return `${m}min`;
+  return `${h}h${m > 0 ? ` ${m}min` : ''}`;
+}
+
+function calcTotalWorked(punches: { tipo: string; timestamp_punch: string }[]): string {
+  let totalMs = 0;
+  for (let i = 0; i + 1 < punches.length; i += 2) {
+    const a = new Date(punches[i].timestamp_punch).getTime();
+    const b = new Date(punches[i + 1].timestamp_punch).getTime();
+    if (b > a) totalMs += b - a;
+  }
+  const totalMins = Math.floor(totalMs / 60000);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if (h === 0) return `${m}min`;
+  return `${h}h${m > 0 ? ` ${m}min` : ''}`;
+}
+
+function PontoHeroCard({
+  pontoState,
+  todayPunches,
+  firstEntrada,
+  onAction,
+}: {
+  pontoState: PontoState;
+  todayPunches: { tipo: string; timestamp_punch: string }[];
+  firstEntrada: { tipo: string; timestamp_punch: string } | null;
+  onAction: () => void;
+}) {
+  const [, setTick] = useState(0);
+  const lastPunch = todayPunches.length > 0 ? todayPunches[todayPunches.length - 1] : null;
+
+  useEffect(() => {
+    if (pontoState === 'working' || pontoState === 'lunch') {
+      const id = setInterval(() => setTick(t => t + 1), 60000);
+      return () => clearInterval(id);
+    }
+  }, [pontoState]);
+
+  if (pontoState === 'idle') {
+    return (
+      <View style={[heroStyles.card, heroStyles.cardIdle]}>
+        <View style={heroStyles.stateRow}>
+          <View style={[heroStyles.dot, heroStyles.dotAmber]} />
+          <Text style={heroStyles.stateLabel}>Sem registro hoje</Text>
+        </View>
+        <Text style={heroStyles.idleText}>Você ainda não registrou{'\n'}sua entrada</Text>
+        <TouchableOpacity
+          style={[heroStyles.actionBtn, heroStyles.btnBrasa]}
+          onPress={onAction}
+          accessibilityLabel="Registrar entrada"
+          accessibilityRole="button"
+        >
+          <Text style={[heroStyles.actionBtnText, { color: '#FFF' }]}>Registrar entrada</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (pontoState === 'working') {
+    const since = firstEntrada ? formatTime(firstEntrada.timestamp_punch) : '—';
+    const elapsed = firstEntrada ? getElapsed(firstEntrada.timestamp_punch) : '—';
+    return (
+      <View style={[heroStyles.card, heroStyles.cardWorking]}>
+        <View style={heroStyles.stateRow}>
+          <View style={[heroStyles.dot, heroStyles.dotGreen]} />
+          <Text style={heroStyles.stateLabel}>Trabalhando</Text>
+        </View>
+        <Text style={heroStyles.timePrefix}>desde</Text>
+        <Text style={heroStyles.timeLarge}>{since}</Text>
+        <Text style={heroStyles.elapsed}>{elapsed} trabalhadas</Text>
+        <TouchableOpacity
+          style={[heroStyles.actionBtn, heroStyles.btnDark]}
+          onPress={onAction}
+          accessibilityLabel="Registrar saída"
+          accessibilityRole="button"
+        >
+          <Text style={[heroStyles.actionBtnText, { color: '#FFF' }]}>Registrar saída</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (pontoState === 'lunch') {
+    const since = lastPunch ? formatTime(lastPunch.timestamp_punch) : '—';
+    const elapsed = lastPunch ? getElapsed(lastPunch.timestamp_punch) : '—';
+    return (
+      <View style={[heroStyles.card, heroStyles.cardLunch]}>
+        <View style={heroStyles.stateRow}>
+          <View style={[heroStyles.dot, heroStyles.dotAmber]} />
+          <Text style={heroStyles.stateLabel}>Em intervalo</Text>
+        </View>
+        <Text style={heroStyles.timePrefix}>desde</Text>
+        <Text style={heroStyles.timeLarge}>{since}</Text>
+        <Text style={heroStyles.elapsed}>{elapsed} de pausa</Text>
+        <TouchableOpacity
+          style={[heroStyles.actionBtn, heroStyles.btnAmber]}
+          onPress={onAction}
+          accessibilityLabel="Registrar retorno"
+          accessibilityRole="button"
+        >
+          <Text style={[heroStyles.actionBtnText, { color: COLORS.CARVAO }]}>Registrar retorno</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // done
+  const startTime = firstEntrada ? formatTime(firstEntrada.timestamp_punch) : '—';
+  const endTime = lastPunch ? formatTime(lastPunch.timestamp_punch) : '—';
+  const worked = calcTotalWorked(todayPunches);
+  return (
+    <View style={[heroStyles.card, heroStyles.cardDone]}>
+      <View style={heroStyles.stateRow}>
+        <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
+        <Text style={[heroStyles.stateLabel, { marginLeft: 6 }]}>Dia concluído</Text>
+      </View>
+      <Text style={heroStyles.timePrefix}>hoje</Text>
+      <Text style={heroStyles.timeLarge}>{startTime} — {endTime}</Text>
+      <Text style={heroStyles.elapsed}>{worked} trabalhadas</Text>
+    </View>
+  );
 }
 
 interface PodiumEmployee {
@@ -59,7 +195,7 @@ interface DashboardData {
   rankPosition: number | null;
   bancoHoras: { saldo_banco: string; banco_horas_acumulado: string } | null;
   faltasMes: number;
-  lastPunch: LastPunch | null;
+  todayPunches: LastPunch[];
   ultimaCampanha: { title: string; category: string } | null;
 }
 
@@ -67,7 +203,7 @@ export default function HomeScreen({ navigation }: any) {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [dashboard, setDashboard] = useState<DashboardData>({
     score: null, rankPosition: null, bancoHoras: null, faltasMes: 0,
-    lastPunch: null, ultimaCampanha: null,
+    todayPunches: [], ultimaCampanha: null,
   });
   const [refreshing, setRefreshing] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -104,7 +240,7 @@ export default function HomeScreen({ navigation }: any) {
         supabase.from('time_records').select('saldo_banco, banco_horas_acumulado').eq('employee_id', empId).order('periodo', { ascending: false }).limit(1).single(),
         supabase.from('absences').select('id', { count: 'exact', head: true }).eq('employee_id', empId).gte('date', firstOfMonth),
         supabase.from('employees').select('id, nome, sobrenome, photo_url, score').not('score', 'is', null).order('score', { ascending: false }).limit(10),
-        supabase.from('time_clock_punches').select('tipo, timestamp_punch').eq('employee_id', empId).gte('timestamp_punch', inicioDoDia).order('timestamp_punch', { ascending: false }).limit(1).single(),
+        supabase.from('time_clock_punches').select('tipo, timestamp_punch').eq('employee_id', empId).gte('timestamp_punch', inicioDoDia).order('timestamp_punch', { ascending: true }),
         supabase.from('campaigns').select('title, category').eq('active', true).order('created_at', { ascending: false }).limit(1).single(),
       ]);
 
@@ -132,7 +268,7 @@ export default function HomeScreen({ navigation }: any) {
       rankPosition,
       bancoHoras: bancoRes?.data || null,
       faltasMes: faltasRes?.count || 0,
-      lastPunch: punchRes?.data ?? null,
+      todayPunches: (punchRes?.data as LastPunch[]) ?? [],
       ultimaCampanha: campanhaRes?.data ?? null,
     });
   }
@@ -261,9 +397,10 @@ export default function HomeScreen({ navigation }: any) {
 
   const saldoPositivo = dashboard.bancoHoras?.saldo_banco && !dashboard.bancoHoras.saldo_banco.startsWith('-');
   const primeiroNome = employee?.nome?.split(' ')[0] || 'Colaborador';
-  const pontoDia = dashboard.lastPunch;
-  const pontoHora = pontoDia ? formatTime(pontoDia.timestamp_punch) : null;
-  const pontoBatido = pontoDia?.tipo === 'entrada';
+  const todayPunches = dashboard.todayPunches;
+  const lastPunch = todayPunches.length > 0 ? todayPunches[todayPunches.length - 1] : null;
+  const firstEntrada = todayPunches.find(p => p.tipo === 'entrada') ?? null;
+  const pontoState: PontoState = !lastPunch ? 'idle' : lastPunch.tipo === 'entrada' ? 'working' : todayPunches.length >= 4 ? 'done' : 'lunch';
 
   const CATEGORY_LABELS: Record<string, string> = {
     saude: 'Saúde', evento: 'Evento', comunicado: 'Comunicado',
@@ -317,32 +454,13 @@ export default function HomeScreen({ navigation }: any) {
 
       {/* ── Conteúdo principal ───────────────────────────────────────────── */}
       <View style={styles.content}>
-        {/* Card de ponto */}
-        <View style={[styles.pontoCard, pontoBatido ? styles.pontoCardActive : styles.pontoCardIdle]}>
-          <View style={styles.pontoCardLeft}>
-            <Ionicons
-              name={pontoBatido ? 'checkmark-circle' : 'time-outline'}
-              size={28}
-              color={pontoBatido ? COLORS.success : COLORS.primary}
-            />
-            <View style={{ marginLeft: 12 }}>
-              <Text style={styles.pontoCardLabel}>
-                {pontoBatido ? 'Entrada registrada' : 'Ponto de hoje'}
-              </Text>
-              <Text style={[styles.pontoCardValor, { color: pontoBatido ? COLORS.success : COLORS.textSecondary }]}>
-                {pontoBatido ? pontoHora! : 'Você ainda não bateu ponto'}
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.pontoCTA}
-            onPress={() => navigation.navigate('Registro')}
-            accessibilityLabel={pontoBatido ? 'Ver registro de ponto' : 'Bater ponto agora'}
-            accessibilityRole="button"
-          >
-            <Text style={styles.pontoCTAText}>{pontoBatido ? 'Ver' : 'Bater ponto'}</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Card de ponto — herói */}
+        <PontoHeroCard
+          pontoState={pontoState}
+          todayPunches={todayPunches}
+          firstEntrada={firstEntrada}
+          onAction={() => navigation.navigate('Registro')}
+        />
 
         {/* Métricas */}
         <View style={styles.metricsRow}>
@@ -727,5 +845,80 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'InstrumentSans_600SemiBold',
     color: COLORS.textPrimary,
+  },
+});
+
+const heroStyles = StyleSheet.create({
+  card: {
+    borderRadius: RADIUS.lg,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    ...SHADOW.md,
+  },
+  cardIdle:    { backgroundColor: COLORS.primaryLight, borderColor: '#E8A020' },
+  cardWorking: { backgroundColor: COLORS.successLight, borderColor: '#A7D9C3' },
+  cardLunch:   { backgroundColor: '#FDF0D4',           borderColor: '#E8A020' },
+  cardDone:    { backgroundColor: COLORS.successLight, borderColor: '#A7D9C3' },
+  stateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  dotGreen: { backgroundColor: COLORS.success },
+  dotAmber: { backgroundColor: '#E8A020' },
+  stateLabel: {
+    fontSize: 12,
+    fontFamily: 'InstrumentSans_500Medium',
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  timePrefix: {
+    fontSize: 13,
+    fontFamily: 'InstrumentSans_400Regular',
+    color: COLORS.textSecondary,
+  },
+  timeLarge: {
+    fontSize: 36,
+    fontFamily: 'Fraunces_700Bold',
+    color: COLORS.CARVAO,
+    letterSpacing: -0.5,
+    marginBottom: 4,
+    lineHeight: 44,
+  },
+  elapsed: {
+    fontSize: 14,
+    fontFamily: 'InstrumentSans_400Regular',
+    color: COLORS.textSecondary,
+    marginBottom: 20,
+  },
+  idleText: {
+    fontSize: 18,
+    fontFamily: 'InstrumentSans_400Regular',
+    color: COLORS.textPrimary,
+    lineHeight: 26,
+    marginBottom: 24,
+  },
+  actionBtn: {
+    minHeight: 56,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  btnBrasa: { backgroundColor: COLORS.primary },
+  btnDark:  { backgroundColor: COLORS.CARVAO },
+  btnAmber: { backgroundColor: '#E8A020' },
+  actionBtnText: {
+    fontSize: 16,
+    fontFamily: 'InstrumentSans_600SemiBold',
+    letterSpacing: 0.2,
   },
 });
