@@ -94,7 +94,8 @@ export default function HomeScreen({ navigation }: any) {
 
   async function fetchDashboard(empId: string) {
     const now = new Date();
-    const hoje = now.toISOString().split('T')[0];
+    // Meia-noite local (não UTC) para não perder pontos entre 21h e meia-noite no Brasil
+    const inicioDoDia = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const [scoreResult, bancoResult, faltasResult, podiumResult, punchResult, campanhaResult] =
@@ -103,7 +104,7 @@ export default function HomeScreen({ navigation }: any) {
         supabase.from('time_records').select('saldo_banco, banco_horas_acumulado').eq('employee_id', empId).order('periodo', { ascending: false }).limit(1).single(),
         supabase.from('absences').select('id', { count: 'exact', head: true }).eq('employee_id', empId).gte('date', firstOfMonth),
         supabase.from('employees').select('id, nome, sobrenome, photo_url, score').not('score', 'is', null).order('score', { ascending: false }).limit(10),
-        supabase.from('time_clock_punches').select('tipo, timestamp_punch').eq('employee_id', empId).gte('timestamp_punch', `${hoje}T00:00:00`).order('timestamp_punch', { ascending: false }).limit(1).single(),
+        supabase.from('time_clock_punches').select('tipo, timestamp_punch').eq('employee_id', empId).gte('timestamp_punch', inicioDoDia).order('timestamp_punch', { ascending: false }).limit(1).single(),
         supabase.from('campaigns').select('title, category').eq('active', true).order('created_at', { ascending: false }).limit(1).single(),
       ]);
 

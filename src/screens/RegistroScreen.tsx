@@ -241,6 +241,8 @@ export default function RegistroScreen({ navigation }: any) {
       setPunchSuccess(true);
       punchTimerRef.current = setTimeout(() => setPunchSuccess(false), 3000);
       fetchTodayPunches(employeeId);
+      // Volta para Início para que useFocusEffect refaça a query de status
+      navigation.navigate('Home');
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const isNetworkError = e instanceof TypeError && e.message?.includes('Network request failed');
