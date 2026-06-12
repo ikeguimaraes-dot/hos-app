@@ -180,22 +180,34 @@ export default function RegistroScreen({ navigation }: any) {
     ]).start();
 
     try {
-      // 1. Localização
+      // 1. Localização — estratégia em camadas (GPS não bloqueia o registro)
       const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
       if (locStatus !== 'granted') {
         Alert.alert('Localização necessária', 'Permita o acesso à localização para registrar o ponto.');
         return;
       }
       // TODO: geofencing Haversine (validar raio por unidade — Sprint E)
-      const location = await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error('GPS lento. Tente em local aberto ou aguarde alguns segundos.')),
-            10000
-          )
-        ),
-      ]);
+      let coords: { latitude: number; longitude: number } | null = null;
+      let gpsWarning = false;
+      try {
+        // Camada 1: última posição conhecida do sistema (instantânea, sem aguardar sinal)
+        const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 60000 });
+        if (lastKnown) {
+          coords = { latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude };
+        } else {
+          // Camada 2: posição atual com precisão balanceada e timeout de 10s
+          const current = await Promise.race([
+            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, timeInterval: 0 }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('GPS_TIMEOUT')), 10000)
+            ),
+          ]);
+          coords = { latitude: current.coords.latitude, longitude: current.coords.longitude };
+        }
+      } catch {
+        // Camada 3: registrar sem coordenadas — localização é metadado, não bloqueio
+        gpsWarning = true;
+      }
 
       // 2. Câmera frontal
       setPunchStep('camera');
@@ -234,8 +246,8 @@ export default function RegistroScreen({ navigation }: any) {
         p_employee_id: employeeId,
         p_tipo:        proximoTipo,
         p_timestamp:   now,
-        p_latitude:    location.coords.latitude,
-        p_longitude:   location.coords.longitude,
+        p_latitude:    coords?.latitude ?? null,
+        p_longitude:   coords?.longitude ?? null,
         p_device_info: storagePath,
       });
 
@@ -251,7 +263,15 @@ export default function RegistroScreen({ navigation }: any) {
       setPunchSuccess(true);
       punchTimerRef.current = setTimeout(() => setPunchSuccess(false), 3000);
       fetchTodayPunches(employeeId);
-      setTimeout(() => navigation.navigate('Home'), 1500);
+      if (gpsWarning) {
+        Alert.alert(
+          'Ponto registrado',
+          'Localização não capturada — pode ser solicitada validação do gestor.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+        );
+      } else {
+        setTimeout(() => navigation.navigate('Home'), 1500);
+      }
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const isNetworkError = e instanceof TypeError && e.message?.includes('Network request failed');
