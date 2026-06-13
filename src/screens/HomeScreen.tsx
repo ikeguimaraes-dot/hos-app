@@ -18,6 +18,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../lib/supabase';
 import { getSession, logout } from '../lib/auth';
 import { COLORS, RADIUS, SHADOW, Employee } from '../lib/types';
+import { PontoHeroCard, derivePontoState } from '../components/PontoHeroCard';
 
 const MESES: Record<string, string> = {
   '01': 'Jan', '02': 'Fev', '03': 'Mar', '04': 'Abr',
@@ -30,151 +31,6 @@ function getSaudacao(): string {
   if (h < 12) return 'Bom dia';
   if (h < 18) return 'Boa tarde';
   return 'Boa noite';
-}
-
-function formatTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'America/Sao_Paulo',
-    });
-  } catch {
-    return '—';
-  }
-}
-
-// ─── Ponto hero card ──────────────────────────────────────────────────────────
-
-type PontoState = 'idle' | 'working' | 'lunch' | 'done';
-
-function getElapsed(since: string): string {
-  const ms = Math.max(0, Date.now() - new Date(since).getTime());
-  const totalMins = Math.floor(ms / 60000);
-  const h = Math.floor(totalMins / 60);
-  const m = totalMins % 60;
-  if (h === 0) return `${m}min`;
-  return `${h}h${m > 0 ? ` ${m}min` : ''}`;
-}
-
-function calcTotalWorked(punches: { tipo: string; timestamp_punch: string }[]): string {
-  let totalMs = 0;
-  for (let i = 0; i + 1 < punches.length; i += 2) {
-    const a = new Date(punches[i].timestamp_punch).getTime();
-    const b = new Date(punches[i + 1].timestamp_punch).getTime();
-    if (b > a) totalMs += b - a;
-  }
-  const totalMins = Math.floor(totalMs / 60000);
-  const h = Math.floor(totalMins / 60);
-  const m = totalMins % 60;
-  if (h === 0) return `${m}min`;
-  return `${h}h${m > 0 ? ` ${m}min` : ''}`;
-}
-
-function PontoHeroCard({
-  pontoState,
-  todayPunches,
-  firstEntrada,
-  onAction,
-}: {
-  pontoState: PontoState;
-  todayPunches: { tipo: string; timestamp_punch: string }[];
-  firstEntrada: { tipo: string; timestamp_punch: string } | null;
-  onAction: () => void;
-}) {
-  const [, setTick] = useState(0);
-  const lastPunch = todayPunches.length > 0 ? todayPunches[todayPunches.length - 1] : null;
-
-  useEffect(() => {
-    if (pontoState === 'working' || pontoState === 'lunch') {
-      const id = setInterval(() => setTick(t => t + 1), 60000);
-      return () => clearInterval(id);
-    }
-  }, [pontoState]);
-
-  if (pontoState === 'idle') {
-    return (
-      <View style={[heroStyles.card, heroStyles.cardIdle]}>
-        <View style={heroStyles.stateRow}>
-          <View style={[heroStyles.dot, heroStyles.dotAmber]} />
-          <Text style={heroStyles.stateLabel}>Sem registro hoje</Text>
-        </View>
-        <Text style={heroStyles.idleText}>Você ainda não registrou{'\n'}sua entrada</Text>
-        <TouchableOpacity
-          style={[heroStyles.actionBtn, heroStyles.btnBrasa]}
-          onPress={onAction}
-          accessibilityLabel="Registrar entrada"
-          accessibilityRole="button"
-        >
-          <Text style={[heroStyles.actionBtnText, { color: '#FFF' }]}>Registrar entrada</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (pontoState === 'working') {
-    const since = firstEntrada ? formatTime(firstEntrada.timestamp_punch) : '—';
-    const elapsed = firstEntrada ? getElapsed(firstEntrada.timestamp_punch) : '—';
-    return (
-      <View style={[heroStyles.card, heroStyles.cardWorking]}>
-        <View style={heroStyles.stateRow}>
-          <View style={[heroStyles.dot, heroStyles.dotGreen]} />
-          <Text style={heroStyles.stateLabel}>Trabalhando</Text>
-        </View>
-        <Text style={heroStyles.timePrefix}>desde</Text>
-        <Text style={heroStyles.timeLarge}>{since}</Text>
-        <Text style={heroStyles.elapsed}>{elapsed} trabalhadas</Text>
-        <TouchableOpacity
-          style={[heroStyles.actionBtn, heroStyles.btnDark]}
-          onPress={onAction}
-          accessibilityLabel="Registrar saída"
-          accessibilityRole="button"
-        >
-          <Text style={[heroStyles.actionBtnText, { color: '#FFF' }]}>Registrar saída</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (pontoState === 'lunch') {
-    const since = lastPunch ? formatTime(lastPunch.timestamp_punch) : '—';
-    const elapsed = lastPunch ? getElapsed(lastPunch.timestamp_punch) : '—';
-    return (
-      <View style={[heroStyles.card, heroStyles.cardLunch]}>
-        <View style={heroStyles.stateRow}>
-          <View style={[heroStyles.dot, heroStyles.dotAmber]} />
-          <Text style={heroStyles.stateLabel}>Em intervalo</Text>
-        </View>
-        <Text style={heroStyles.timePrefix}>desde</Text>
-        <Text style={heroStyles.timeLarge}>{since}</Text>
-        <Text style={heroStyles.elapsed}>{elapsed} de pausa</Text>
-        <TouchableOpacity
-          style={[heroStyles.actionBtn, heroStyles.btnAmber]}
-          onPress={onAction}
-          accessibilityLabel="Registrar retorno"
-          accessibilityRole="button"
-        >
-          <Text style={[heroStyles.actionBtnText, { color: COLORS.CARVAO }]}>Registrar retorno</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  // done
-  const startTime = firstEntrada ? formatTime(firstEntrada.timestamp_punch) : '—';
-  const endTime = lastPunch ? formatTime(lastPunch.timestamp_punch) : '—';
-  const worked = calcTotalWorked(todayPunches);
-  return (
-    <View style={[heroStyles.card, heroStyles.cardDone]}>
-      <View style={heroStyles.stateRow}>
-        <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
-        <Text style={[heroStyles.stateLabel, { marginLeft: 6 }]}>Dia concluído</Text>
-      </View>
-      <Text style={heroStyles.timePrefix}>hoje</Text>
-      <Text style={heroStyles.timeLarge}>{startTime} — {endTime}</Text>
-      <Text style={heroStyles.elapsed}>{worked} trabalhadas</Text>
-    </View>
-  );
 }
 
 interface PodiumEmployee {
@@ -230,8 +86,6 @@ export default function HomeScreen({ navigation }: any) {
 
   async function fetchDashboard(empId: string) {
     const now = new Date();
-    // Meia-noite local (não UTC) para não perder pontos entre 21h e meia-noite no Brasil
-    const inicioDoDia = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const [scoreResult, bancoResult, faltasResult, podiumResult, punchResult, campanhaResult] =
@@ -240,7 +94,7 @@ export default function HomeScreen({ navigation }: any) {
         supabase.from('time_records').select('saldo_banco, banco_horas_acumulado').eq('employee_id', empId).order('periodo', { ascending: false }).limit(1).single(),
         supabase.from('absences').select('id', { count: 'exact', head: true }).eq('employee_id', empId).gte('date', firstOfMonth),
         supabase.from('employees').select('id, nome, sobrenome, photo_url, score').not('score', 'is', null).order('score', { ascending: false }).limit(10),
-        supabase.from('time_clock_punches').select('tipo, timestamp_punch').eq('employee_id', empId).gte('timestamp_punch', inicioDoDia).order('timestamp_punch', { ascending: true }),
+        supabase.rpc('get_my_punches_today', { p_employee_id: empId }),
         supabase.from('campaigns').select('title, category').eq('active', true).order('created_at', { ascending: false }).limit(1).single(),
       ]);
 
@@ -398,9 +252,8 @@ export default function HomeScreen({ navigation }: any) {
   const saldoPositivo = dashboard.bancoHoras?.saldo_banco && !dashboard.bancoHoras.saldo_banco.startsWith('-');
   const primeiroNome = employee?.nome?.split(' ')[0] || 'Colaborador';
   const todayPunches = dashboard.todayPunches;
-  const lastPunch = todayPunches.length > 0 ? todayPunches[todayPunches.length - 1] : null;
   const firstEntrada = todayPunches.find(p => p.tipo === 'entrada') ?? null;
-  const pontoState: PontoState = !lastPunch ? 'idle' : lastPunch.tipo === 'entrada' ? 'working' : todayPunches.length >= 4 ? 'done' : 'lunch';
+  const pontoState = derivePontoState(todayPunches);
 
   const CATEGORY_LABELS: Record<string, string> = {
     saude: 'Saúde', evento: 'Evento', comunicado: 'Comunicado',
@@ -848,77 +701,3 @@ const styles = StyleSheet.create({
   },
 });
 
-const heroStyles = StyleSheet.create({
-  card: {
-    borderRadius: RADIUS.lg,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1.5,
-    ...SHADOW.md,
-  },
-  cardIdle:    { backgroundColor: COLORS.primaryLight, borderColor: '#E8A020' },
-  cardWorking: { backgroundColor: COLORS.successLight, borderColor: '#A7D9C3' },
-  cardLunch:   { backgroundColor: '#FDF0D4',           borderColor: '#E8A020' },
-  cardDone:    { backgroundColor: COLORS.successLight, borderColor: '#A7D9C3' },
-  stateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  dotGreen: { backgroundColor: COLORS.success },
-  dotAmber: { backgroundColor: '#E8A020' },
-  stateLabel: {
-    fontSize: 12,
-    fontFamily: 'InstrumentSans_500Medium',
-    color: COLORS.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  timePrefix: {
-    fontSize: 13,
-    fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.textSecondary,
-  },
-  timeLarge: {
-    fontSize: 36,
-    fontFamily: 'Fraunces_700Bold',
-    color: COLORS.CARVAO,
-    letterSpacing: -0.5,
-    marginBottom: 4,
-    lineHeight: 44,
-  },
-  elapsed: {
-    fontSize: 14,
-    fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.textSecondary,
-    marginBottom: 20,
-  },
-  idleText: {
-    fontSize: 18,
-    fontFamily: 'InstrumentSans_400Regular',
-    color: COLORS.textPrimary,
-    lineHeight: 26,
-    marginBottom: 24,
-  },
-  actionBtn: {
-    minHeight: 56,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  btnBrasa: { backgroundColor: COLORS.primary },
-  btnDark:  { backgroundColor: COLORS.CARVAO },
-  btnAmber: { backgroundColor: '#E8A020' },
-  actionBtnText: {
-    fontSize: 16,
-    fontFamily: 'InstrumentSans_600SemiBold',
-    letterSpacing: 0.2,
-  },
-});

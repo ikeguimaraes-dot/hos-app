@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
 import { getSession } from '../lib/auth';
 import { COLORS } from '../lib/types';
+import { PontoHeroCard, derivePontoState } from '../components/PontoHeroCard';
 
 const MESES: Record<string, string> = {
   '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
@@ -116,20 +117,10 @@ export default function RegistroScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [lastPunch, setLastPunch] = useState<PunchRecord | null>(null);
   const [todayPunches, setTodayPunches] = useState<TodayPunch[]>([]);
   const [punchLoading, setPunchLoading] = useState(false);
-  const [punchSuccess, setPunchSuccess] = useState(false);
   const [punchStep, setPunchStep] = useState<'idle' | 'gps' | 'camera' | 'upload' | 'done'>('idle');
   const punchScale = useRef(new Animated.Value(1)).current;
-  const punchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // W1: limpa timer do punchSuccess no unmount
-  useEffect(() => {
-    return () => {
-      if (punchTimerRef.current) clearTimeout(punchTimerRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     (async () => {
@@ -151,17 +142,9 @@ export default function RegistroScreen({ navigation }: any) {
 
   useFocusEffect(
     useCallback(() => {
-      if (employeeId) {
-        fetchLastPunch(employeeId);
-        fetchTodayPunches(employeeId);
-      }
+      if (employeeId) fetchTodayPunches(employeeId);
     }, [employeeId])
   );
-
-  async function fetchLastPunch(empId: string) {
-    const { data } = await supabase.rpc('get_my_last_punch', { p_employee_id: empId });
-    setLastPunch(data ?? null);
-  }
 
   async function fetchTodayPunches(empId: string) {
     const { data } = await supabase.rpc('get_my_punches_today', { p_employee_id: empId });
@@ -170,7 +153,7 @@ export default function RegistroScreen({ navigation }: any) {
 
   async function registrarPonto() {
     if (!employeeId || punchLoading) return;
-    const proximoTipo = lastPunch?.tipo === 'entrada' ? 'saida' : 'entrada';
+    const proximoTipo: 'entrada' | 'saida' = pontoState === 'working' ? 'saida' : 'entrada';
     setPunchLoading(true);
     setPunchStep('gps');
 
@@ -256,12 +239,9 @@ export default function RegistroScreen({ navigation }: any) {
         return;
       }
 
-      // Sucesso — haptic + animação
+      // Sucesso — haptic + refetch
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPunchStep('done');
-      setLastPunch(data as PunchRecord);
-      setPunchSuccess(true);
-      punchTimerRef.current = setTimeout(() => setPunchSuccess(false), 3000);
       fetchTodayPunches(employeeId);
       if (gpsWarning) {
         Alert.alert(
@@ -292,77 +272,14 @@ export default function RegistroScreen({ navigation }: any) {
     done: 'Registrado!',
   };
 
-  function renderPontoCard() {
-    const proximoTipo = lastPunch?.tipo === 'entrada' ? 'saida' : 'entrada';
-    const isEntrada = proximoTipo === 'entrada';
-    const cor = isEntrada ? COLORS.PRIMARY : COLORS.CARVAO;
-    const label = isEntrada ? 'Registrar Entrada' : 'Registrar Saída';
-    const iconName = isEntrada ? 'log-in-outline' : 'log-out-outline';
-
-    let lastTime: string | null = null;
-    if (lastPunch) {
-      lastTime = new Date(lastPunch.timestamp_punch).toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'America/Sao_Paulo',
-      });
-    }
-
-    return (
-      <View style={[styles.card, styles.pontoCard]}>
-        <Text style={styles.pontoTitle}>Bater Ponto</Text>
-
-        {punchSuccess ? (
-          <View style={styles.pontoSuccess}>
-            <Ionicons name="checkmark-circle" size={30} color={COLORS.SUCCESS} />
-            <Text style={styles.pontoSuccessText}>
-              {lastPunch?.tipo === 'entrada' ? 'Entrada' : 'Saída'} registrada às{' '}
-              {lastTime}
-            </Text>
-          </View>
-        ) : (
-          <Animated.View style={{ transform: [{ scale: punchScale }] }}>
-            <TouchableOpacity
-              style={[styles.pontoButton, { backgroundColor: cor }]}
-              onPress={registrarPonto}
-              disabled={punchLoading}
-              activeOpacity={0.85}
-              accessibilityLabel={isEntrada ? 'Registrar entrada' : 'Registrar saída'}
-              accessibilityRole="button"
-              accessibilityState={{ busy: punchLoading }}
-            >
-              {punchLoading ? (
-                <>
-                  <ActivityIndicator color="#FFF" size="small" style={{ marginRight: 8 }} />
-                  <Text style={styles.pontoButtonText}>{STEP_LABELS[punchStep] ?? 'Processando...'}</Text>
-                </>
-              ) : (
-                <>
-                  <Ionicons name={iconName as any} size={20} color="#FFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.pontoButtonText}>{label}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        <Text style={styles.pontoSubtext} accessibilityLiveRegion="polite">
-          {lastPunch && !punchSuccess
-            ? `Último registro: ${lastPunch.tipo === 'entrada' ? 'entrada' : 'saída'} às ${lastTime}`
-            : !punchSuccess
-            ? 'Você ainda não bateu ponto hoje'
-            : ''}
-        </Text>
-      </View>
-    );
-  }
+  const pontoState = derivePontoState(todayPunches);
+  const todayFirstEntrada = todayPunches.find(p => p.tipo === 'entrada') ?? null;
 
   async function fetchAll() {
     if (!employeeId) return;
 
     const [registroRes] = await Promise.allSettled([
       supabase.rpc('get_my_registro', { p_employee_id: employeeId }),
-      fetchLastPunch(employeeId),
       fetchTodayPunches(employeeId),
     ]);
 
@@ -673,16 +590,27 @@ export default function RegistroScreen({ navigation }: any) {
       renderSectionHeader={renderSectionHeader}
       ListHeaderComponent={() => (
         <>
-          {renderPontoCard()}
+          <Animated.View style={{ transform: [{ scale: punchScale }] }}>
+            <PontoHeroCard
+              pontoState={pontoState}
+              todayPunches={todayPunches}
+              firstEntrada={todayFirstEntrada}
+              onAction={registrarPonto}
+              actionLoading={punchLoading}
+              actionLoadingLabel={STEP_LABELS[punchStep] ?? 'Processando...'}
+            />
+          </Animated.View>
           {renderTimelineCard()}
         </>
       )}
       ListEmptyComponent={
-        <View style={styles.emptyInner}>
-          <Ionicons name="time-outline" size={64} color={COLORS.BORDER} />
-          <Text style={styles.emptyTitle}>Bata seu primeiro ponto hoje</Text>
-          <Text style={styles.emptySubtitle}>Seus registros de ponto, horas extras e ausências aparecem aqui.</Text>
-        </View>
+        pontoState === 'idle' ? (
+          <View style={styles.emptyInner}>
+            <Ionicons name="time-outline" size={64} color={COLORS.BORDER} />
+            <Text style={styles.emptyTitle}>Bata seu primeiro ponto hoje</Text>
+            <Text style={styles.emptySubtitle}>Seus registros de ponto, horas extras e ausências aparecem aqui.</Text>
+          </View>
+        ) : null
       }
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     />
