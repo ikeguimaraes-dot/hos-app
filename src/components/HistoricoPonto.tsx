@@ -190,7 +190,7 @@ function DayRowItem({ row, isLast }: { row: DayRow; isLast: boolean }) {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 interface HistoricoPontoProps {
-  employeeId: string;
+  employeeId: string | null;
   refreshKey?: number;
 }
 
@@ -199,6 +199,7 @@ export function HistoricoPonto({ employeeId, refreshKey = 0 }: HistoricoPontoPro
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!employeeId) return; // aguarda sessão carregar do AsyncStorage
     let cancelled = false;
 
     async function load() {
@@ -219,7 +220,8 @@ export function HistoricoPonto({ employeeId, refreshKey = 0 }: HistoricoPontoPro
     return () => { cancelled = true; };
   }, [employeeId, refreshKey]);
 
-  if (loading) {
+  // employeeId ainda null → sessão não carregou, mantém skeleton
+  if (!employeeId || loading) {
     return (
       <View style={styles.container}>
         {Array.from({ length: 7 }).map((_, i) => (
