@@ -20,6 +20,7 @@ import { supabase } from '../lib/supabase';
 import { getSession } from '../lib/auth';
 import { COLORS } from '../lib/types';
 import { PontoHeroCard, derivePontoState } from '../components/PontoHeroCard';
+import { HistoricoPonto } from '../components/HistoricoPonto';
 
 const MESES: Record<string, string> = {
   '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
@@ -120,6 +121,7 @@ export default function RegistroScreen({ navigation }: any) {
   const [todayPunches, setTodayPunches] = useState<TodayPunch[]>([]);
   const [punchLoading, setPunchLoading] = useState(false);
   const [punchStep, setPunchStep] = useState<'idle' | 'gps' | 'camera' | 'upload' | 'done'>('idle');
+  const [histRefreshKey, setHistRefreshKey] = useState(0);
   const punchScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -297,6 +299,7 @@ export default function RegistroScreen({ navigation }: any) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    setHistRefreshKey(k => k + 1);
     await fetchAll();
     setRefreshing(false);
   }, [employeeId]);
@@ -601,6 +604,12 @@ export default function RegistroScreen({ navigation }: any) {
             />
           </Animated.View>
           {renderTimelineCard()}
+          {employeeId && (
+            <>
+              <Text style={styles.sectionTitle}>Histórico</Text>
+              <HistoricoPonto employeeId={employeeId} refreshKey={histRefreshKey} />
+            </>
+          )}
         </>
       )}
       ListEmptyComponent={
