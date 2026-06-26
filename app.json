@@ -24,6 +24,7 @@
     "android": {
       "package": "com.kph.hos",
       "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#C4622D"
@@ -40,6 +41,14 @@
     },
     "plugins": [
       "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#C4622D",
+          "sounds": []
+        }
+      ],
       [
         "expo-camera",
         {

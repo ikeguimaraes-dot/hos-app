@@ -1,0 +1,24 @@
+{
+  "project_info": {
+    "project_number": "PLACEHOLDER",
+    "project_id": "kph-hos-app",
+    "storage_bucket": "kph-hos-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "PLACEHOLDER",
+        "android_client_info": {
+          "package_name": "com.kph.hos"
+        }
+      },
+      "api_key": [{ "current_key": "PLACEHOLDER" }],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

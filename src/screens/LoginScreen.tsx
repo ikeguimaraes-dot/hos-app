@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { login } from '../lib/auth';
+import { supabase } from '../lib/supabase';
+import { registerForPushNotifications } from '../services/notifications';
 import { COLORS, RADIUS, SHADOW } from '../lib/types';
 
 export default function LoginScreen({ navigation }: any) {
@@ -59,7 +61,16 @@ export default function LoginScreen({ navigation }: any) {
     setErrors({});
     setLoading(true);
     try {
-      await login(cpf.replace(/\D/g, ''), password);
+      const employee = await login(cpf.replace(/\D/g, ''), password);
+      // Registrar push token silenciosamente (falha não bloqueia o login)
+      registerForPushNotifications().then(token => {
+        if (token && employee?.id) {
+          supabase.rpc('upsert_push_token', {
+            p_employee_id: employee.id,
+            p_token: token,
+          }).catch(() => {/* silencia */});
+        }
+      }).catch(() => {/* silencia — Expo Go ou sem permissão */});
       navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] });
     } catch (error: any) {
       setErrors({ general: error.message || 'CPF ou senha incorretos. Tente novamente.' });
