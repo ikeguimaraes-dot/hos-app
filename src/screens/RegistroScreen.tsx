@@ -22,6 +22,21 @@ import { COLORS } from '../lib/types';
 import { PontoHeroCard, derivePontoState } from '../components/PontoHeroCard';
 import { HistoricoPonto } from '../components/HistoricoPonto';
 
+function haversineDistance(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number
+): number {
+  const R = 6371000;
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
 const MESES: Record<string, string> = {
   '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
   '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
@@ -109,6 +124,7 @@ interface TodayPunch {
 
 export default function RegistroScreen({ navigation }: any) {
   const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [unitId, setUnitId] = useState<string | null>(null);
   const [timeRecords, setTimeRecords] = useState<TimeRecord[]>([]);
   const [overtime, setOvertime] = useState<OvertimeRecord[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
@@ -135,6 +151,7 @@ export default function RegistroScreen({ navigation }: any) {
         return;
       }
       setEmployeeId(session.employee.id);
+      setUnitId(session.employee.unit_id || null);
     })();
   }, []);
 
@@ -171,7 +188,6 @@ export default function RegistroScreen({ navigation }: any) {
         Alert.alert('Localização necessária', 'Permita o acesso à localização para registrar o ponto.');
         return;
       }
-      // TODO: geofencing Haversine (validar raio por unidade — Sprint E)
       let coords: { latitude: number; longitude: number } | null = null;
       let gpsWarning = false;
       try {
@@ -192,6 +208,27 @@ export default function RegistroScreen({ navigation }: any) {
       } catch {
         // Camada 3: registrar sem coordenadas — localização é metadado, não bloqueio
         gpsWarning = true;
+      }
+
+      // Geofencing Haversine — valida raio da unidade (fail-open: sem coords ou unit_id não penaliza)
+      let aprovado = true;
+      let distanceMeters: number | null = null;
+
+      if (coords && unitId) {
+        try {
+          const { data: geo } = await supabase.rpc('get_unit_geofence', { p_unit_id: unitId });
+          if (geo?.[0]?.latitude && geo?.[0]?.longitude) {
+            distanceMeters = Math.round(haversineDistance(
+              coords.latitude, coords.longitude,
+              geo[0].latitude, geo[0].longitude
+            ));
+            if (distanceMeters > geo[0].radius_meters) {
+              aprovado = false;
+            }
+          }
+        } catch {
+          // Falha silenciosa — fail-open: aprovado permanece true
+        }
       }
 
       // 2. Câmera frontal
@@ -228,12 +265,15 @@ export default function RegistroScreen({ navigation }: any) {
       // 4. Registra o ponto
       const now = new Date().toISOString();
       const { data, error } = await supabase.rpc('insert_punch', {
-        p_employee_id: employeeId,
-        p_tipo:        proximoTipo,
-        p_timestamp:   now,
-        p_latitude:    coords?.latitude ?? null,
-        p_longitude:   coords?.longitude ?? null,
-        p_device_info: storagePath,
+        p_employee_id:     employeeId,
+        p_tipo:            proximoTipo,
+        p_timestamp:       now,
+        p_latitude:        coords?.latitude ?? null,
+        p_longitude:       coords?.longitude ?? null,
+        p_device_info:     storagePath,
+        p_aprovado:        gpsWarning ? true : aprovado,
+        p_distance_meters: distanceMeters,
+        p_gps_failed:      gpsWarning,
       });
 
       if (error || !data) {
@@ -245,7 +285,13 @@ export default function RegistroScreen({ navigation }: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPunchStep('done');
       fetchTodayPunches(employeeId);
-      if (gpsWarning) {
+      if (!aprovado && distanceMeters !== null) {
+        Alert.alert(
+          'Ponto registrado',
+          `Você está a ${distanceMeters}m da unidade. Seu ponto foi registrado e aguarda aprovação do gestor.`,
+          [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+        );
+      } else if (gpsWarning) {
         Alert.alert(
           'Ponto registrado',
           'Localização não capturada — pode ser solicitada validação do gestor.',
