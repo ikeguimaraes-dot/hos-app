@@ -105,7 +105,7 @@ export function PontoHeroCard({
         <Text style={heroStyles.elapsed}>{elapsed} trabalhadas</Text>
         <HeroButton
           label="Registrar saída"
-          btnStyle={[heroStyles.actionBtn, heroStyles.btnDark]}
+          btnStyle={[heroStyles.actionBtn, heroStyles.btnBrasa]}
           textColor="#FFF"
           onPress={onAction}
           loading={actionLoading}

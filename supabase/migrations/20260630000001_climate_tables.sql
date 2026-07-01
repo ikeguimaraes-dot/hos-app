@@ -1,0 +1,4 @@
+-- Tabelas de pesquisa de clima organizacional
+-- Aplicado em 2026-06-30 via supabase db query --linked
+-- Tabelas: climate_surveys, climate_questions, climate_responses
+-- RPCs: get_active_survey, submit_survey_responses, check_survey_response, get_survey_results

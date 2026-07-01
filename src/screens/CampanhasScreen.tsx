@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { getSession } from '../lib/auth';
-import { COLORS } from '../lib/types';
+import { COLORS, RADIUS } from '../lib/types';
 
 interface Campaign {
   id: string;
@@ -148,9 +148,18 @@ export default function CampanhasScreen() {
         renderItem={renderItem}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="megaphone-outline" size={64} color={COLORS.BORDER} />
+            <View style={styles.emptyIconContainer}>
+              <Ionicons name="megaphone" size={40} color="#C4622D" />
+            </View>
             <Text style={styles.emptyTitle}>Nenhuma campanha ativa</Text>
-            <Text style={styles.emptySubtitle}>As campanhas internas da equipe aparecem aqui.</Text>
+            <Text style={styles.emptySubtitle}>
+              Comunicados, metas e novidades{'\n'}da equipe aparecem aqui
+            </Text>
+            <View style={styles.emptyPreviewCard}>
+              <Text style={styles.emptyPreviewText}>
+                Em breve: metas do mês, aniversários e reconhecimentos
+              </Text>
+            </View>
           </View>
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -240,8 +249,45 @@ const styles = StyleSheet.create({
   cardDescription: { fontSize: 14, fontFamily: 'InstrumentSans_400Regular', color: COLORS.TEXT_SECONDARY, lineHeight: 20, marginBottom: 8 },
   cardDate: { fontSize: 12, fontFamily: 'InstrumentSans_400Regular', color: COLORS.TEXT_SECONDARY },
   empty: { alignItems: 'center', padding: 32 },
-  emptyTitle: { fontSize: 20, fontFamily: 'Fraunces_700Bold', color: COLORS.TEXT, marginTop: 16 },
-  emptySubtitle: { fontSize: 15, fontFamily: 'InstrumentSans_400Regular', color: COLORS.TEXT_SECONDARY, textAlign: 'center', marginTop: 8, lineHeight: 22 },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FAECE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontFamily: 'Fraunces_700Bold',
+    color: COLORS.TEXT,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    fontFamily: 'InstrumentSans_400Regular',
+    color: COLORS.TEXT_SECONDARY,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  emptyPreviewCard: {
+    marginTop: 20,
+    backgroundColor: '#F5F0E8',
+    borderRadius: RADIUS.md,
+    padding: 16,
+    maxWidth: 280,
+    borderWidth: 1,
+    borderColor: '#E8E0CE',
+  },
+  emptyPreviewText: {
+    fontSize: 13,
+    fontFamily: 'InstrumentSans_400Regular',
+    color: '#5A4A3A',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   modalContainer: { flex: 1, backgroundColor: COLORS.BACKGROUND },
   modalClose: { position: 'absolute', top: 56, right: 20, zIndex: 10, backgroundColor: COLORS.CARD, borderRadius: 20, padding: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4 },
   modalContent: { paddingBottom: 40 },

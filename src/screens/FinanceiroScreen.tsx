@@ -418,9 +418,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    height: 56,
+    maxHeight: 60,
   },
-  tabBarContent: { paddingHorizontal: 16, alignItems: 'center', flexDirection: 'row' },
+  tabBarContent: { paddingHorizontal: 16, alignItems: 'center', flexDirection: 'row', gap: 4 },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
