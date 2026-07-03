@@ -22,7 +22,7 @@
       "bundleIdentifier": "com.kph.hos"
     },
     "android": {
-      "package": "com.kph.hos",
+      "package": "com.hos.app",
       "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {

@@ -1,18 +1,23 @@
 {
   "project_info": {
-    "project_number": "PLACEHOLDER",
-    "project_id": "kph-hos-app",
-    "storage_bucket": "kph-hos-app.appspot.com"
+    "project_number": "242523706332",
+    "project_id": "hos-app-ac1b9",
+    "storage_bucket": "hos-app-ac1b9.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "PLACEHOLDER",
+        "mobilesdk_app_id": "1:242523706332:android:87a0e6e674e86e5eb7f519",
         "android_client_info": {
-          "package_name": "com.kph.hos"
+          "package_name": "com.hos.app"
         }
       },
-      "api_key": [{ "current_key": "PLACEHOLDER" }],
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDliZVj9ewIgQ8S8dSoMOQLEMMv7psOfdg"
+        }
+      ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": []
