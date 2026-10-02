@@ -82,7 +82,7 @@ export default function DocumentosScreen({ navigation }: any) {
   async function fetchDocuments() {
     if (!employeeId) return;
     try {
-      const { data } = await supabase.rpc('get_my_documents', { p_employee_id: employeeId });
+      const { data } = await supabase.rpc('get_my_documents_v2', { p_employee_id: employeeId });
       setDocuments(data || []);
     } finally {
       setLoading(false);
@@ -123,7 +123,7 @@ export default function DocumentosScreen({ navigation }: any) {
 
       if (storageError) throw new Error(storageError.message);
 
-      const { error: insertError } = await supabase.rpc('insert_document', {
+      const { error: insertError } = await supabase.rpc('insert_document_v2', {
         p_employee_id:  employeeId,
         p_unit_id:      unitId,
         p_name:         fileName,

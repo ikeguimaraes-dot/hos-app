@@ -166,7 +166,7 @@ export default function RegistroScreen({ navigation }: any) {
   );
 
   async function fetchTodayPunches(empId: string) {
-    const { data } = await supabase.rpc('get_my_punches_today', { p_employee_id: empId });
+    const { data } = await supabase.rpc('get_my_punches_today_v2', { p_employee_id: empId });
     setTodayPunches(data || []);
   }
 
@@ -216,7 +216,7 @@ export default function RegistroScreen({ navigation }: any) {
 
       if (coords && unitId) {
         try {
-          const { data: geo } = await supabase.rpc('get_unit_geofence', { p_unit_id: unitId });
+          const { data: geo } = await supabase.rpc('get_unit_geofence_v2', { p_unit_id: unitId });
           if (geo?.[0]?.latitude && geo?.[0]?.longitude) {
             distanceMeters = Math.round(haversineDistance(
               coords.latitude, coords.longitude,
@@ -264,7 +264,7 @@ export default function RegistroScreen({ navigation }: any) {
 
       // 4. Registra o ponto
       const now = new Date().toISOString();
-      const { data, error } = await supabase.rpc('insert_punch', {
+      const { data, error } = await supabase.rpc('insert_punch_v2', {
         p_employee_id:     employeeId,
         p_tipo:            proximoTipo,
         p_timestamp:       now,
@@ -327,7 +327,7 @@ export default function RegistroScreen({ navigation }: any) {
     if (!employeeId) return;
 
     const [registroRes] = await Promise.allSettled([
-      supabase.rpc('get_my_registro', { p_employee_id: employeeId }),
+      supabase.rpc('get_my_registro_v2', { p_employee_id: employeeId }),
       fetchTodayPunches(employeeId),
     ]);
 

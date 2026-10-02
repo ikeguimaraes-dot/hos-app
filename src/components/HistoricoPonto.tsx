@@ -313,8 +313,8 @@ export function HistoricoPonto({ employeeId, refreshKey = 0 }: HistoricoPontoPro
     async function load() {
       setLoading(true);
       const [punchRes, adjRes] = await Promise.all([
-        supabase.rpc('get_my_punch_history', { p_employee_id: eid, p_days: 30 }),
-        supabase.rpc('get_my_adjustment_requests', { p_employee_id: eid }),
+        supabase.rpc('get_my_punch_history_v2', { p_employee_id: eid, p_days: 30 }),
+        supabase.rpc('get_my_adjustment_requests_v2', { p_employee_id: eid }),
       ]);
       if (!cancelled) {
         if (!punchRes.error && Array.isArray(punchRes.data)) {
@@ -383,7 +383,7 @@ export function HistoricoPonto({ employeeId, refreshKey = 0 }: HistoricoPontoPro
     setSubmitting(true);
     setSubmitError(null);
 
-    const { error } = await supabase.rpc('create_punch_adjustment', {
+    const { error } = await supabase.rpc('create_punch_adjustment_v2', {
       p_employee_id: employeeId,
       p_data_referencia: modalDay,
       p_horario_saida_almoco: saidaStr,

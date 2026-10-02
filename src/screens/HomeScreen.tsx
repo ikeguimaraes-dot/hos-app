@@ -85,46 +85,18 @@ export default function HomeScreen({ navigation }: any) {
   }
 
   async function fetchDashboard(empId: string) {
-    const now = new Date();
-    const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-
-    const [scoreResult, bancoResult, faltasResult, podiumResult, punchResult, campanhaResult] =
-      await Promise.allSettled([
-        supabase.from('employees').select('score, photo_url').eq('id', empId).single(),
-        supabase.from('time_records').select('saldo_banco, banco_horas_acumulado').eq('employee_id', empId).order('periodo', { ascending: false }).limit(1).single(),
-        supabase.from('absences').select('id', { count: 'exact', head: true }).eq('employee_id', empId).gte('date', firstOfMonth),
-        supabase.from('employees').select('id, nome, sobrenome, photo_url, score').not('score', 'is', null).order('score', { ascending: false }).limit(10),
-        supabase.rpc('get_my_punches_today', { p_employee_id: empId }),
-        supabase.from('campaigns').select('title, category').eq('active', true).order('created_at', { ascending: false }).limit(1).single(),
-      ]);
-
-    const scoreRes    = scoreResult.status    === 'fulfilled' ? scoreResult.value    : null;
-    const bancoRes    = bancoResult.status    === 'fulfilled' ? bancoResult.value    : null;
-    const faltasRes   = faltasResult.status   === 'fulfilled' ? faltasResult.value   : null;
-    const podiumRes   = podiumResult.status   === 'fulfilled' ? podiumResult.value   : null;
-    const punchRes    = punchResult.status    === 'fulfilled' ? punchResult.value    : null;
-    const campanhaRes = campanhaResult.status === 'fulfilled' ? campanhaResult.value : null;
-
-    if (scoreRes?.data?.photo_url) setPhotoUrl(scoreRes.data.photo_url);
-
-    const allScores: PodiumEmployee[] = podiumRes?.data || [];
-    const myScore = scoreRes?.data?.score ?? null;
-    let rankPosition: number | null = null;
-    if (myScore != null && allScores.length > 0) {
-      const higher = allScores.map(e => e.score).filter(s => s > myScore).length;
-      rankPosition = higher + 1;
-    }
-
+    const [{ data: home }, { data: punches }] = await Promise.all([
+      supabase.rpc('get_my_home_v2', { p_employee_id: empId }),
+      supabase.rpc('get_my_punches_today_v2', { p_employee_id: empId }),
+    ]);
+    if (home?.photo_url) setPhotoUrl(home.photo_url);
+    const allScores: PodiumEmployee[] = home?.podium || [];
+    const myScore = home?.score ?? null;
     setPodium(allScores.slice(0, 3));
-
-    setDashboard({
-      score: myScore,
-      rankPosition,
-      bancoHoras: bancoRes?.data || null,
-      faltasMes: faltasRes?.count || 0,
-      todayPunches: (punchRes?.data as LastPunch[]) ?? [],
-      ultimaCampanha: campanhaRes?.data ?? null,
-    });
+    setDashboard({ score: myScore,
+      rankPosition: myScore == null ? null : allScores.filter(e => e.score > myScore).length + 1,
+      bancoHoras: home?.banco_horas || null, faltasMes: home?.faltas_mes || 0,
+      todayPunches: (punches as LastPunch[]) ?? [], ultimaCampanha: home?.last_campanha ?? null });
   }
 
   async function handleRefresh() {
@@ -174,7 +146,7 @@ export default function HomeScreen({ navigation }: any) {
         if (upErr) throw upErr;
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
         const newUrl = urlData.publicUrl + '?t=' + Date.now();
-        await supabase.from('employees').update({ photo_url: newUrl }).eq('id', empId);
+        await supabase.rpc('update_employee_photo_v2', { p_employee_id: empId, p_photo_url: newUrl });
         setPhotoUrl(newUrl);
       } catch {
         Alert.alert('Erro', 'Não foi possível atualizar a foto. Tente novamente.');
