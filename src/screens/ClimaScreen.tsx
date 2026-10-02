@@ -75,7 +75,7 @@ export default function ClimaScreen({ navigation }: any) {
 
   async function loadSurvey(uid: string, empId: string) {
     try {
-      const { data: surveyData, error: surveyErr } = await supabase.rpc('get_active_survey', {
+      const { data: surveyData, error: surveyErr } = await supabase.rpc('get_active_survey_v2', {
         p_unit_id: uid,
       });
 
@@ -86,7 +86,7 @@ export default function ClimaScreen({ navigation }: any) {
 
       setSurvey(surveyData as ActiveSurvey);
 
-      const { data: answered } = await supabase.rpc('check_survey_response', {
+      const { data: answered } = await supabase.rpc('check_survey_response_v2', {
         p_employee_id: empId,
         p_survey_id: surveyData.survey_id,
       });
@@ -120,7 +120,7 @@ export default function ClimaScreen({ navigation }: any) {
       texto_livre: v.texto_livre ?? null,
     }));
 
-    const { error } = await supabase.rpc('submit_survey_responses', {
+    const { error } = await supabase.rpc('submit_survey_responses_v2', {
       p_employee_id: employeeId,
       p_survey_id: survey.survey_id,
       p_responses: p_responses,

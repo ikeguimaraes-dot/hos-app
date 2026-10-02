@@ -140,7 +140,7 @@ export default function DesenvolvimentoScreen({ navigation }: any) {
   }, [employeeId]);
 
   async function fetchAll(id: string) {
-    const { data } = await supabase.rpc('get_my_development', { p_employee_id: id });
+    const { data } = await supabase.rpc('get_my_development_v2', { p_employee_id: id });
     if (data) {
       setPdis(data.pdis || []);
       setFeedbacks(data.feedbacks || []);

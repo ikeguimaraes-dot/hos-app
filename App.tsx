@@ -1,3 +1,4 @@
+import AppVersionGate from './src/components/AppVersionGate';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -174,7 +175,7 @@ function AppTabs() {
   );
 }
 
-export default function App() {
+function EmployeeApp() {
   const [isReady, setIsReady] = useState(false);
   const [initialRoute, setInitialRoute] = useState<string>('Login');
 
@@ -249,4 +250,8 @@ export default function App() {
       </NavigationContainer>
     </GestureHandlerRootView>
   );
+}
+
+export default function App() {
+  return <AppVersionGate><EmployeeApp /></AppVersionGate>;
 }

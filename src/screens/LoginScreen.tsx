@@ -65,10 +65,10 @@ export default function LoginScreen({ navigation }: any) {
       // Registrar push token silenciosamente (falha não bloqueia o login)
       registerForPushNotifications().then(token => {
         if (token && employee?.id) {
-          supabase.rpc('upsert_push_token', {
+          Promise.resolve(supabase.rpc('upsert_push_token_v2', {
             p_employee_id: employee.id,
             p_token: token,
-          }).catch(() => {/* silencia */});
+          })).catch(() => {/* silencia */});
         }
       }).catch(() => {/* silencia — Expo Go ou sem permissão */});
       navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] });

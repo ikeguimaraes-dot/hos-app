@@ -15,6 +15,7 @@ import { COLORS } from '../lib/types';
 
 export default function PrimeiroAcessoScreen({ navigation }: any) {
   const [cpf, setCpf] = useState('');
+  const [invite, setInvite] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,20 +43,17 @@ export default function PrimeiroAcessoScreen({ navigation }: any) {
       return;
     }
 
-    console.log('[PRIMEIRO ACESSO SCREEN] handleFirstAccess chamado, CPF:', cleanCpf);
 
     setLoading(true);
     try {
-      await primeiroAcesso(cleanCpf, newPassword);
+      await primeiroAcesso(cleanCpf, newPassword, invite);
 
       Alert.alert('Sucesso', 'Senha criada com sucesso! Faça login.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error: any) {
-      console.log('[PRIMEIRO ACESSO SCREEN] Erro capturado:', error.message);
       Alert.alert('Erro', error.message);
     } finally {
-      console.log('[PRIMEIRO ACESSO SCREEN] finally - setLoading(false)');
       setLoading(false);
     }
   }
@@ -69,7 +67,7 @@ export default function PrimeiroAcessoScreen({ navigation }: any) {
         <View style={styles.header}>
           <Text style={styles.title}>Primeiro Acesso</Text>
           <Text style={styles.description}>
-            Digite seu CPF e crie uma senha para acessar o sistema.
+            Use o convite recebido do RH, informe seu CPF e crie sua senha.
           </Text>
         </View>
 
@@ -85,6 +83,10 @@ export default function PrimeiroAcessoScreen({ navigation }: any) {
             maxLength={14}
           />
 
+          <Text style={styles.label}>Convite recebido do RH</Text>
+          <TextInput style={styles.input} value={invite} onChangeText={setInvite}
+            autoCapitalize="none" autoCorrect={false} maxLength={64}
+            placeholder="Cole o código do convite" accessibilityLabel="Convite recebido do RH" />
           <Text style={styles.label}>Nova Senha</Text>
           <TextInput
             style={styles.input}

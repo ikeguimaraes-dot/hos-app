@@ -79,3 +79,7 @@ hos-app-descritivo.md
 # generated native folders
 /ios
 /android
+
+# Release verification web export
+/dist-web/
+.vercel/
